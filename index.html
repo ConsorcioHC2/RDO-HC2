@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Registro Diário de Obra - HC²</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#182555">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RDO HC²">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
@@ -550,6 +557,27 @@
     transition:opacity .15s ease, background .15s ease;
   }
   .home-restricted-link:hover{ opacity:1; background:rgba(255,255,255,.07); }
+  .install-wrap{ margin-top:14px; text-align:center; }
+  .install-btn{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:auto;
+    margin:0 auto;
+    padding:10px 14px;
+    border-radius:10px;
+    border:1px solid rgba(230,109,55,.34);
+    background:rgba(230,109,55,.11);
+    color:#ffd0ba;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.15s ease;
+  }
+  .install-btn:hover{ background:rgba(230,109,55,.18); transform:translateY(-1px); }
+  .install-btn.show{ display:inline-flex; }
   @media (max-width:640px){
     .home-actions, .home-grid{ grid-template-columns:1fr; }
     .home-title{ font-size:28px; }
@@ -578,7 +606,11 @@
       </button>
     </div>
 
-    <div class="admin-link-wrap" style="margin-top:20px; padding:0;">
+    <div class="install-wrap">
+      <button type="button" id="installAppBtn" class="install-btn">📲 Instalar RDO HC²</button>
+    </div>
+
+    <div class="admin-link-wrap" style="margin-top:16px; padding:0;">
       <a class="admin-link" href="admin.html">🔒 Área administrativa</a>
     </div>
 
@@ -709,6 +741,40 @@ function goToHelp(){ window.location.hash = 'ajuda'; }
 function goToForm(){ window.location.hash = 'novo-rdo'; }
 
 window.addEventListener('hashchange', renderScreenFromHash);
+
+let deferredInstallPrompt = null;
+const installAppBtn = document.getElementById('installAppBtn');
+
+function appEstaInstalado(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (!appEstaInstalado()) installAppBtn.classList.add('show');
+});
+
+installAppBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  try { await deferredInstallPrompt.userChoice; } catch (_) {}
+  deferredInstallPrompt = null;
+  installAppBtn.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installAppBtn.classList.remove('show');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch((err) => {
+      console.warn('Service Worker não registrado:', err);
+    });
+  });
+}
 
 
 function showAlert(message){
