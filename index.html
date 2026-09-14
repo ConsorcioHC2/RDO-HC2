@@ -367,7 +367,7 @@
   }
 
   .admin-link-wrap{ max-width:640px; margin:14px auto 0; padding:0 16px; text-align:center; }
-  .admin-link{ display:inline-flex; align-items:center; gap:7px; color:#cbd2e4; font-family:'IBM Plex Mono', monospace; font-size:11px; text-decoration:none; opacity:.8; }
+  .admin-link{ display:inline-flex; align-items:center; gap:7px; color:#cbd2e4; font-family:'IBM Plex Mono', monospace; font-size:11px; text-decoration:none; opacity:.72; }
   .admin-link:hover{ color:#fff; opacity:1; }
 
 
@@ -419,7 +419,7 @@
   }
   .home-actions{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
     gap:12px;
     margin-top:24px;
   }
@@ -449,7 +449,7 @@
   }
   .home-grid{
     display:grid;
-    grid-template-columns:repeat(2, 1fr);
+    grid-template-columns:1fr;
     gap:12px;
     margin-top:14px;
   }
@@ -529,6 +529,27 @@
     padding:10px 14px;
   }
   .quick-btn.primary{ background:rgba(230,109,55,.18); border-color:rgba(230,109,55,.35); color:#ffd1bb; }
+
+  .home-restricted-wrap{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:14px;
+  }
+  .home-restricted-link{
+    width:30px;
+    height:30px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    color:rgba(255,255,255,.45);
+    text-decoration:none;
+    border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.025);
+    font-size:13px;
+    opacity:.55;
+    transition:opacity .15s ease, background .15s ease;
+  }
+  .home-restricted-link:hover{ opacity:1; background:rgba(255,255,255,.07); }
   @media (max-width:640px){
     .home-actions, .home-grid{ grid-template-columns:1fr; }
     .home-title{ font-size:28px; }
@@ -548,7 +569,6 @@
 
     <div class="home-actions">
       <button type="button" class="home-main-btn" onclick="goToForm()">➜ Novo RDO</button>
-      <a class="home-secondary-btn" href="admin.html">🔒 Área administrativa</a>
     </div>
 
     <div class="home-grid">
@@ -556,16 +576,12 @@
         <strong>Como preencher</strong>
         <span>Veja um passo a passo rápido para orientar o preenchimento em campo.</span>
       </button>
-      <a class="home-card" href="admin.html">
-        <strong>Painel / Excel</strong>
-        <span>Use a área administrativa para consultar registros, gráficos e exportação.</span>
-      </a>
     </div>
 
-    <div class="home-note">
-      <strong style="color:#fff; display:block; margin-bottom:6px;">Dica</strong>
-      No celular, este sistema pode ser aberto como atalho na tela inicial e continua funcionando normalmente no computador pelo navegador.
+    <div class="admin-link-wrap" style="margin-top:20px; padding:0;">
+      <a class="admin-link" href="admin.html">🔒 Área administrativa</a>
     </div>
+
   </section>
 </div>
 
@@ -654,8 +670,6 @@
     <div class="hint" id="hint">Preencha quem preencheu, gerência da área, disciplina, clima e, em cada atividade, local, mão de obra, equipamentos e atividade (mínimo 15 caracteres). Foto é obrigatória só quando a disciplina for Construção e Montagem ou Comissionamento.</div>
   </div>
 </main>
-<div class="admin-link-wrap"><a class="admin-link" href="admin.html">🔒 Área administrativa</a></div>
-
 </div>
 
 <div class="stamp-overlay" id="stampOverlay">
