@@ -6,6 +6,7 @@
 <title>Painel Administrativo RDO - HC²</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
@@ -72,6 +73,7 @@ button,input,select{font:inherit}
       <div><h2>Visão consolidada</h2><p>Uma linha por atividade, com os dados do RDO e suas fotos vinculadas.</p></div>
       <div class="hero-actions">
         <button id="refreshBtn" class="secondary-btn">↻ Atualizar</button>
+        <button id="downloadPhotosBtn" class="secondary-btn">⬇ Baixar fotos</button>
         <button id="exportBtn" class="primary-btn">⬇ Exportar Excel</button>
       </div>
     </div>
@@ -107,7 +109,7 @@ button,input,select{font:inherit}
       <div class="table-head"><h3>RDO consolidado</h3><div id="tableCount" class="table-count">0 atividades</div></div>
       <div class="table-scroll"><table>
         <thead><tr>
-          <th>Data</th><th>Preenchido por</th><th>Gerência</th><th>Disciplina</th><th>Clima</th><th>Status</th><th>Ativ.</th><th>Local</th><th>Mão de obra</th><th>Equipamentos</th><th>Atividade executada</th><th>PT</th><th>Início</th><th>Fim</th><th>Observações</th><th>Fotos</th><th>Ações</th>
+          <th>Data</th><th>Preenchido por</th><th>Gerência</th><th>Disciplina</th><th>Clima</th><th>Status</th><th>Ativ.</th><th>Local</th><th>Mão de obra</th><th>Equipamentos</th><th>Atividade executada</th><th>Paralização</th><th>PT</th><th>Início</th><th>Fim</th><th>Observações</th><th>Fotos</th><th>Ações</th>
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table><div id="emptyState" class="empty hidden">Nenhum registro encontrado com os filtros atuais.</div></div>
@@ -232,7 +234,7 @@ function buildRows(){
     const r=rdoById.get(a.rdo_id)||{};
     const fotos=(fotosByAtividade.get(a.id)||[]).sort((x,y)=>(x.ordem||0)-(y.ordem||0));
     return {
-      rdo_id:a.rdo_id, atividade_id:a.id, created_at:r.created_at||a.created_at||'', data:r.data||'', preenchido_por:r.preenchido_por||'', gerencia:r.gerencia||'', disciplina:r.disciplina||'', clima:r.clima||'', status:r.status||'', ordem:a.ordem||'', local:a.local||'', mao_obra:a.mao_obra||'', equipamentos:a.equipamentos||'', atividade:a.atividade||'', pt:!!a.pt, pt_inicio:a.pt_inicio||'', pt_fim:a.pt_fim||'', observacoes:a.observacoes||'', fotos
+      rdo_id:a.rdo_id, atividade_id:a.id, created_at:r.created_at||a.created_at||'', data:r.data||'', preenchido_por:r.preenchido_por||'', gerencia:r.gerencia||'', disciplina:r.disciplina||'', clima:r.clima||'', status:r.status||'', ordem:a.ordem||'', local:a.local||'', mao_obra:a.mao_obra||'', equipamentos:a.equipamentos||'', atividade:a.atividade||'', paralisacao:a.paralisacao||'', pt:!!a.pt, pt_inicio:a.pt_inicio||'', pt_fim:a.pt_fim||'', observacoes:a.observacoes||'', fotos
     };
   }).sort((x,y)=>(y.data||'').localeCompare(x.data||'') || (x.ordem||0)-(y.ordem||0));
 }
@@ -277,7 +279,7 @@ function renderTable(){
   const body=el('tableBody'); el('tableCount').textContent=`${state.filtered.length} atividade${state.filtered.length===1?'':'s'}`;
   el('emptyState').classList.toggle('hidden',state.filtered.length>0);
   body.innerHTML=state.filtered.map(r=>`<tr>
-    <td class="mono">${escapeHtml(fmtDate(r.data))}</td><td>${escapeHtml(r.preenchido_por)}</td><td>${escapeHtml(r.gerencia)}</td><td><span class="badge">${escapeHtml(r.disciplina)}</span></td><td>${escapeHtml(r.clima)}</td><td><span class="badge green">${escapeHtml(r.status||'—')}</span></td><td class="mono">${escapeHtml(r.ordem)}</td><td>${escapeHtml(r.local)}</td><td>${escapeHtml(r.mao_obra)}</td><td>${escapeHtml(r.equipamentos)}</td><td>${escapeHtml(r.atividade)}</td><td><span class="badge ${r.pt?'orange':''}">${r.pt?'Sim':'Não'}</span></td><td class="mono">${escapeHtml(fmtTime(r.pt_inicio))}</td><td class="mono">${escapeHtml(fmtTime(r.pt_fim))}</td><td>${escapeHtml(r.observacoes||'')}</td><td class="mono">${r.fotos.length}</td><td><button class="view-btn" onclick="openDetails('${r.rdo_id}')">Ver RDO</button></td>
+    <td class="mono">${escapeHtml(fmtDate(r.data))}</td><td>${escapeHtml(r.preenchido_por)}</td><td>${escapeHtml(r.gerencia)}</td><td><span class="badge">${escapeHtml(r.disciplina)}</span></td><td>${escapeHtml(r.clima)}</td><td><span class="badge green">${escapeHtml(r.status||'—')}</span></td><td class="mono">${escapeHtml(r.ordem)}</td><td>${escapeHtml(r.local)}</td><td>${escapeHtml(r.mao_obra)}</td><td>${escapeHtml(r.equipamentos)}</td><td>${escapeHtml(r.atividade)}</td><td>${escapeHtml(r.paralisacao||'')}</td><td><span class="badge ${r.pt?'orange':''}">${r.pt?'Sim':'Não'}</span></td><td class="mono">${escapeHtml(fmtTime(r.pt_inicio))}</td><td class="mono">${escapeHtml(fmtTime(r.pt_fim))}</td><td>${escapeHtml(r.observacoes||'')}</td><td class="mono">${r.fotos.length}</td><td><button class="view-btn" onclick="openDetails('${r.rdo_id}')">Ver RDO</button></td>
   </tr>`).join('');
 }
 
@@ -295,20 +297,93 @@ async function openDetails(rdoId){
     }else photoHtml='<div class="photo-status">Sem fotos nesta atividade.</div>';
     cards.push(`<section class="activity-card"><div class="activity-head">Atividade ${escapeHtml(a.ordem||'')}</div><div class="activity-body"><div class="activity-grid">
       <div class="detail"><b>Local</b><span>${escapeHtml(a.local||'')}</span></div><div class="detail"><b>Mão de obra</b><span>${escapeHtml(a.mao_obra||'')}</span></div><div class="detail"><b>Equipamentos</b><span>${escapeHtml(a.equipamentos||'')}</span></div><div class="detail"><b>PT</b><span>${a.pt?'Sim':'Não'}</span></div><div class="detail"><b>Início</b><span>${escapeHtml(fmtTime(a.pt_inicio))}</span></div><div class="detail"><b>Fim</b><span>${escapeHtml(fmtTime(a.pt_fim))}</span></div>
-    </div><div class="activity-text"><b>Atividade executada</b><br>${escapeHtml(a.atividade||'')}</div>${a.observacoes?`<div class="activity-text"><b>Observações</b><br>${escapeHtml(a.observacoes)}</div>`:''}${photoHtml}</div></section>`);
+    </div><div class="activity-text"><b>Atividade executada</b><br>${escapeHtml(a.atividade||'')}</div>${a.paralisacao?`<div class="activity-text"><b>Paralização (exceto pausa de segurança)</b><br>${escapeHtml(a.paralisacao)}</div>`:''}${a.observacoes?`<div class="activity-text"><b>Observações</b><br>${escapeHtml(a.observacoes)}</div>`:''}${photoHtml}</div></section>`);
   }
   el('modalBody').innerHTML=`<div class="detail-grid"><div class="detail"><b>Data</b><span>${fmtDate(rdo.data)}</span></div><div class="detail"><b>Preenchido por</b><span>${escapeHtml(rdo.preenchido_por||'')}</span></div><div class="detail"><b>Gerência</b><span>${escapeHtml(rdo.gerencia||'')}</span></div><div class="detail"><b>Disciplina</b><span>${escapeHtml(rdo.disciplina||'')}</span></div><div class="detail"><b>Clima</b><span>${escapeHtml(rdo.clima||'')}</span></div><div class="detail"><b>Status</b><span>${escapeHtml(rdo.status||'')}</span></div><div class="detail"><b>Atividades</b><span>${atividades.length}</span></div><div class="detail"><b>Fotos</b><span>${atividades.reduce((s,a)=>s+state.fotos.filter(f=>f.atividade_id===a.id).length,0)}</span></div></div>${cards.join('')}`;
   el('detailModal').classList.remove('hidden');
 }
 window.openDetails=openDetails;
 
+function safeFileName(value){
+  return String(value||'')
+    .replace(/[\\/:*?"<>|]/g,'-')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,120) || 'Sem identificação';
+}
+
+function fileExtension(path){
+  const clean=String(path||'').split('?')[0];
+  const match=clean.match(/(\.[a-zA-Z0-9]{2,5})$/);
+  return match ? match[1].toLowerCase() : '.jpg';
+}
+
+async function downloadFilteredPhotos(){
+  const rows=state.filtered.filter(r=>r.fotos.length>0);
+  const totalFotos=rows.reduce((sum,row)=>sum+row.fotos.length,0);
+  if(!totalFotos){ toast('Não há fotos nos filtros atuais.',true); return; }
+  if(typeof JSZip==='undefined'){ toast('Não foi possível carregar o recurso de ZIP. Atualize a página e tente novamente.',true); return; }
+
+  const btn=el('downloadPhotosBtn');
+  const original=btn.textContent;
+  btn.disabled=true;
+  let baixadas=0;
+  const erros=[];
+  const zip=new JSZip();
+  const folders=new Map();
+
+  try{
+    for(const row of rows){
+      const rdo=state.rdos.find(r=>r.id===row.rdo_id)||{};
+      const dataLabel=fmtDate(row.data).replaceAll('/','-') || 'sem-data';
+      const folderKey=row.rdo_id;
+      if(!folders.has(folderKey)){
+        const folderName=safeFileName(`RDO ${dataLabel} - ${row.disciplina||'Sem disciplina'} - ${row.preenchido_por||'Sem nome'} - ${String(row.rdo_id).slice(0,8)}`);
+        folders.set(folderKey,zip.folder(folderName));
+      }
+      const folder=folders.get(folderKey);
+
+      for(let i=0;i<row.fotos.length;i++){
+        const foto=row.fotos[i];
+        btn.textContent=`Baixando fotos ${baixadas+1}/${totalFotos}…`;
+        try{
+          const {data,error}=await db.storage.from('fotos-rdo').download(foto.arquivo);
+          if(error) throw error;
+          const numeroFoto=foto.ordem || (i+1);
+          const ext=fileExtension(foto.nome_original || foto.arquivo);
+          folder.file(`Atividade ${row.ordem} foto ${numeroFoto}${ext}`,data);
+          baixadas++;
+        }catch(err){
+          console.error('Erro ao baixar foto:',foto.arquivo,err);
+          erros.push(foto.arquivo);
+        }
+      }
+    }
+
+    if(!baixadas){ toast('Não foi possível baixar as fotos selecionadas.',true); return; }
+    btn.textContent='Gerando ZIP…';
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const ini=el('fDataIni').value||'inicio', fim=el('fDataFim').value||'hoje';
+    a.href=url; a.download=`Fotos_RDO_${ini}_a_${fim}.zip`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    if(erros.length) toast(`ZIP gerado com ${baixadas} foto(s). ${erros.length} foto(s) não puderam ser baixadas.`,true);
+    else toast(`ZIP gerado com ${baixadas} foto${baixadas===1?'':'s'} dos filtros atuais.`);
+  }catch(err){
+    console.error(err); toast('Não foi possível gerar o ZIP de fotos: '+(err.message||err),true);
+  }finally{
+    btn.disabled=false; btn.textContent=original;
+  }
+}
+
 function exportExcel(){
   if(!state.filtered.length){ toast('Não há dados para exportar.',true); return; }
-  const headers=['Data','Preenchido por','Gerência','Disciplina','Clima','Status','Atividade nº','Local','Mão de obra','Equipamentos','Atividade executada','PT','Horário início','Horário fim','Observações','Qtd. fotos','Arquivos de foto','ID RDO','ID atividade'];
-  const data=state.filtered.map(r=>[fmtDate(r.data),r.preenchido_por,r.gerencia,r.disciplina,r.clima,r.status,r.ordem,r.local,r.mao_obra,r.equipamentos,r.atividade,r.pt?'Sim':'Não',fmtTime(r.pt_inicio),fmtTime(r.pt_fim),r.observacoes||'',r.fotos.length,r.fotos.map(f=>f.arquivo).join(' | '),r.rdo_id,r.atividade_id]);
+  const headers=['Data','Preenchido por','Gerência','Disciplina','Clima','Status','Atividade nº','Local','Mão de obra','Equipamentos','Atividade executada','Paralização (exceto pausa de segurança)','PT','Horário início','Horário fim','Observações','Qtd. fotos','Arquivos de foto','ID RDO','ID atividade'];
+  const data=state.filtered.map(r=>[fmtDate(r.data),r.preenchido_por,r.gerencia,r.disciplina,r.clima,r.status,r.ordem,r.local,r.mao_obra,r.equipamentos,r.atividade,r.paralisacao||'',r.pt?'Sim':'Não',fmtTime(r.pt_inicio),fmtTime(r.pt_fim),r.observacoes||'',r.fotos.length,r.fotos.map(f=>f.arquivo).join(' | '),r.rdo_id,r.atividade_id]);
   const ws=XLSX.utils.aoa_to_sheet([headers,...data]);
-  ws['!autofilter']={ref:`A1:S${data.length+1}`}; ws['!freeze']={xSplit:0,ySplit:1};
-  ws['!cols']=[12,22,22,24,20,14,11,20,26,26,52,9,14,14,42,11,48,38,38].map(w=>({wch:w}));
+  ws['!autofilter']={ref:`A1:T${data.length+1}`}; ws['!freeze']={xSplit:0,ySplit:1};
+  ws['!cols']=[12,22,22,24,20,14,11,20,26,26,52,42,9,14,14,42,11,48,38,38].map(w=>({wch:w}));
   const distinctRdos=new Set(state.filtered.map(r=>r.rdo_id)).size, totalFotos=state.filtered.reduce((s,r)=>s+r.fotos.length,0), totalPt=state.filtered.filter(r=>r.pt).length;
   const counts={}; state.filtered.forEach(r=>counts[r.disciplina||'Sem disciplina']=(counts[r.disciplina||'Sem disciplina']||0)+1);
   const plan=STORAGE_PLANS[el('storagePlan')?.value||'free']||STORAGE_PLANS.free;
@@ -336,7 +411,7 @@ function scheduleSilentRefresh(){ clearTimeout(state.refreshTimer); state.refres
 ['fDataIni','fDataFim','fDisciplina','fGerencia','fLocal','fStatus'].forEach(id=>el(id).addEventListener('change',applyFilters));
 const savedStoragePlan=localStorage.getItem('hc2-storage-plan')||'free'; if(STORAGE_PLANS[savedStoragePlan]) el('storagePlan').value=savedStoragePlan;
 el('storagePlan').addEventListener('change',()=>{ localStorage.setItem('hc2-storage-plan',el('storagePlan').value); renderStorageUsage(); });
-el('refreshBtn').addEventListener('click',()=>loadData()); el('exportBtn').addEventListener('click',exportExcel); el('loginForm').addEventListener('submit',login); el('logoutBtn').addEventListener('click',logout); el('modalClose').addEventListener('click',()=>el('detailModal').classList.add('hidden')); el('detailModal').addEventListener('click',e=>{if(e.target===el('detailModal'))el('detailModal').classList.add('hidden')});
+el('refreshBtn').addEventListener('click',()=>loadData()); el('downloadPhotosBtn').addEventListener('click',downloadFilteredPhotos); el('exportBtn').addEventListener('click',exportExcel); el('loginForm').addEventListener('submit',login); el('logoutBtn').addEventListener('click',logout); el('modalClose').addEventListener('click',()=>el('detailModal').classList.add('hidden')); el('detailModal').addEventListener('click',e=>{if(e.target===el('detailModal'))el('detailModal').classList.add('hidden')});
 
 (async()=>{ const {data}=await db.auth.getSession(); if(data.session) await showApp(data.session); })();
 </script>

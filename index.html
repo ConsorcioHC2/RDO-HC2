@@ -871,6 +871,10 @@ function addBloco(dados){
       <div class="char-counter" id="atividade-counter-${id}">0/15 caracteres mínimo</div>
     </div>
     <div class="field">
+      <label>Paralização (exceto pausa de segurança)</label>
+      <textarea id="paralisacao-${id}" placeholder="Descreva a paralização, se houver (opcional)"></textarea>
+    </div>
+    <div class="field">
       <label>PT (Permissão de Trabalho) <span class="req">*</span></label>
       <select id="pt-${id}">
         <option value="">Selecione…</option>
@@ -918,6 +922,7 @@ function addBloco(dados){
     document.getElementById('maoobra-' + id).value = dados.maoDeObra || '';
     document.getElementById('equipamentos-' + id).value = dados.equipamentos || '';
     document.getElementById('atividade-' + id).value = dados.atividade || '';
+    document.getElementById('paralisacao-' + id).value = dados.paralisacao || '';
     document.getElementById('pt-' + id).value = dados.pt || '';
     document.getElementById('pt-inicio-' + id).value = dados.ptInicio || '';
     document.getElementById('pt-fim-' + id).value = dados.ptFim || '';
@@ -936,6 +941,7 @@ function duplicarBloco(idOrigem){
     maoDeObra: document.getElementById('maoobra-' + idOrigem).value,
     equipamentos: document.getElementById('equipamentos-' + idOrigem).value,
     atividade: document.getElementById('atividade-' + idOrigem).value,
+    paralisacao: document.getElementById('paralisacao-' + idOrigem).value,
     pt: document.getElementById('pt-' + idOrigem).value,
     ptInicio: document.getElementById('pt-inicio-' + idOrigem).value,
     ptFim: document.getElementById('pt-fim-' + idOrigem).value,
@@ -1193,6 +1199,7 @@ async function enviarRegistro(){
     mao_obra: document.getElementById('maoobra-' + id).value.trim(),
     equipamentos: document.getElementById('equipamentos-' + id).value.trim(),
     atividade: document.getElementById('atividade-' + id).value.trim(),
+    paralisacao: document.getElementById('paralisacao-' + id).value.trim() || null,
     pt: document.getElementById('pt-' + id).value === 'Sim',
     pt_inicio: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-inicio-' + id).value : null,
     pt_fim: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-fim-' + id).value : null,
