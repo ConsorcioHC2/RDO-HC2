@@ -635,7 +635,7 @@
     <ol class="help-steps">
       <li><div class="step-number">1</div><div><strong>Preencha os dados gerais</strong><p>Informe data, nome de quem está preenchendo, gerência da área, disciplina e condição climática.</p></div></li>
       <li><div class="step-number">2</div><div><strong>Cadastre as atividades</strong><p>Em cada atividade, preencha local, mão de obra, equipamentos e descreva a atividade executada com pelo menos 30 caracteres.</p></div></li>
-      <li><div class="step-number">3</div><div><strong>Paralização e PT</strong><p>Informe Sim ou Não. Quando houver paralização, selecione o tipo e os horários. Quando houver PT, informe número, solicitante, emitente e os horários.</p></div></li>
+      <li><div class="step-number">3</div><div><strong>Paralização e PT</strong><p>Informe Sim ou Não. Quando houver paralização, selecione o tipo, descreva o motivo e informe os horários. Quando houver PT, informe número, solicitante, emitente e os horários.</p></div></li>
       <li><div class="step-number">4</div><div><strong>Anexe as fotos</strong><p>É possível anexar até 3 fotos por atividade. Para Construção e Montagem e Comissionamento, pelo menos 1 foto é obrigatória.</p></div></li>
       <li><div class="step-number">5</div><div><strong>Revise e envie</strong><p>Depois de revisar tudo, clique em “Enviar registro”. Se faltar algum campo obrigatório, o botão continua bloqueado.</p></div></li>
     </ol>
@@ -888,6 +888,10 @@ function addBloco(dados){
         </select>
       </div>
       <div class="field">
+        <label>Motivo da paralização <span class="req">*</span></label>
+        <textarea id="paralisacao-motivo-${id}" placeholder="Descreva exatamente o motivo da paralização"></textarea>
+      </div>
+      <div class="field">
         <label>Horário de início <span class="req">*</span></label>
         <input type="time" id="paralisacao-inicio-${id}">
       </div>
@@ -948,6 +952,7 @@ function addBloco(dados){
   document.getElementById('atividade-' + id).addEventListener('input', () => { atualizarContadorAtividade(id); validateForm(); });
   document.getElementById('paralisacao-sim-' + id).addEventListener('change', () => { toggleParalisacaoDetalhes(id); validateForm(); });
   document.getElementById('paralisacao-tipo-' + id).addEventListener('change', validateForm);
+  document.getElementById('paralisacao-motivo-' + id).addEventListener('input', validateForm);
   document.getElementById('paralisacao-inicio-' + id).addEventListener('input', validateForm);
   document.getElementById('paralisacao-fim-' + id).addEventListener('input', validateForm);
   document.getElementById('pt-' + id).addEventListener('change', () => { togglePtHorarios(id); validateForm(); });
@@ -965,6 +970,7 @@ function addBloco(dados){
     document.getElementById('atividade-' + id).value = dados.atividade || '';
     document.getElementById('paralisacao-sim-' + id).value = dados.paralisacaoSim || '';
     document.getElementById('paralisacao-tipo-' + id).value = dados.paralisacaoTipo || '';
+    document.getElementById('paralisacao-motivo-' + id).value = dados.paralisacaoMotivo || '';
     document.getElementById('paralisacao-inicio-' + id).value = dados.paralisacaoInicio || '';
     document.getElementById('paralisacao-fim-' + id).value = dados.paralisacaoFim || '';
     document.getElementById('pt-' + id).value = dados.pt || '';
@@ -991,6 +997,7 @@ function duplicarBloco(idOrigem){
     atividade: document.getElementById('atividade-' + idOrigem).value,
     paralisacaoSim: document.getElementById('paralisacao-sim-' + idOrigem).value,
     paralisacaoTipo: document.getElementById('paralisacao-tipo-' + idOrigem).value,
+    paralisacaoMotivo: document.getElementById('paralisacao-motivo-' + idOrigem).value,
     paralisacaoInicio: document.getElementById('paralisacao-inicio-' + idOrigem).value,
     paralisacaoFim: document.getElementById('paralisacao-fim-' + idOrigem).value,
     pt: document.getElementById('pt-' + idOrigem).value,
@@ -1023,6 +1030,7 @@ function toggleParalisacaoDetalhes(id){
   } else {
     wrap.style.display = 'none';
     document.getElementById('paralisacao-tipo-' + id).value = '';
+    document.getElementById('paralisacao-motivo-' + id).value = '';
     document.getElementById('paralisacao-inicio-' + id).value = '';
     document.getElementById('paralisacao-fim-' + id).value = '';
   }
@@ -1153,9 +1161,10 @@ function validateForm(){
     let paralisacaoOk = !!paralisacao;
     if (paralisacao === 'Sim') {
       const tipo = document.getElementById('paralisacao-tipo-' + id).value;
+      const motivo = document.getElementById('paralisacao-motivo-' + id).value.trim();
       const inicioParalisacao = document.getElementById('paralisacao-inicio-' + id).value;
       const fimParalisacao = document.getElementById('paralisacao-fim-' + id).value;
-      paralisacaoOk = paralisacaoOk && !!tipo && !!inicioParalisacao && !!fimParalisacao;
+      paralisacaoOk = paralisacaoOk && !!tipo && !!motivo && !!inicioParalisacao && !!fimParalisacao;
     }
 
     const pt = document.getElementById('pt-' + id).value;
@@ -1283,6 +1292,7 @@ async function enviarRegistro(){
     equipamentos: document.getElementById('equipamentos-' + id).value.trim(),
     atividade: document.getElementById('atividade-' + id).value.trim(),
     paralisacao_sim: document.getElementById('paralisacao-sim-' + id).value === 'Sim',
+    paralisacao: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-motivo-' + id).value.trim() : null,
     paralisacao_tipo: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-tipo-' + id).value : null,
     paralisacao_inicio: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-inicio-' + id).value : null,
     paralisacao_fim: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-fim-' + id).value : null,
