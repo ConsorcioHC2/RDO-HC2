@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hc2-rdo-v2';
+const CACHE_NAME = 'hc2-rdo-v3';
 const APP_SHELL = [
   './',
   './index.html',
