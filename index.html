@@ -600,6 +600,11 @@
   .review-overlay{display:none; position:fixed; inset:0; z-index:90; background:rgba(7,12,31,.88); padding:16px; align-items:center; justify-content:center;}
   .review-overlay.show{display:flex;}
   .review-box{width:min(640px,100%);max-height:92vh;overflow:auto;background:#f7f8fc;color:#182555;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.48);}
+
+  .review-alert-summary{background:#fff7ed;border:1px solid #f0bb8f;color:#763c16;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:4px;}
+  .review-alert-summary strong{display:block;margin-bottom:4px;}
+  .review-warning{background:#fff7ed;border-left:4px solid #e66d37;border-radius:7px;padding:10px 12px;color:#793b16;margin:8px 0;font-size:13px;line-height:1.5;}
+  .review-warning strong{display:block;margin-bottom:2px;}
   .review-box h2{font-size:24px;margin:0 0 6px;}
   .review-lead{color:#53607e;font-size:13px;line-height:1.5;margin:0 0 14px;}
   .review-body{display:grid;gap:12px;max-height:58vh;overflow:auto;}
@@ -1558,6 +1563,44 @@ async function syncPending({manual=false}={}){
 }
 async function sendPendingNow(){ await syncPending({manual:true}); }
 function reviewInfo(label,value){return `<p><b>${escapeHtml(label)}:</b> ${escapeHtml(String(value || '—'))}</p>`;}
+
+// Conservador: apenas textos compostos por termos vagos conhecidos recebem o alerta.
+// Uma referência específica (bomba, linha, estrutura identificada, código etc.) evita o aviso.
+const REVIEW_GENERIC_WORDS = new Set(`realizacao execucao continuidade andamento conclusao finalizacao inicio iniciados iniciado realizadas realizada realizados realizado executadas executada executados executado efetuadas efetuada efetuados efetuado servico servicos trabalho trabalhos atividade atividades geral gerais diverso diversos diversa diversas rotina rotineiras rotineiros rotineira rotineiro montagem desmontagem manutencao instalacao equipamento equipamentos estrutura estruturas obra obras area areas unidade unidades setor setores local locais campo campos operacional operacionais operacao operacoes obras em no na nos nas de da do dos das para com e a o um uma ao aos as os que foi foram nos nas`.split(' '));
+function isGenericReviewDescription(value){
+  const normalized=String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g,' ').trim();
+  if(!normalized) return false;
+  const words=normalized.split(/\s+/);
+  return words.length>=3 && words.every(word=>REVIEW_GENERIC_WORDS.has(word));
+}
+
+// Ignora apenas caixa, espaços extras e pontuação no fim dos campos de texto.
+function normalizeReviewText(value){return String(value ?? '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').replace(/[.!?;:,\s]+$/g,'');}
+const REVIEW_COMPARE_FIELDS=['local','maoDeObra','equipamentos','atividade','paralisacaoSim','paralisacaoTipo',
+  'paralisacaoMotivo','paralisacaoInicio','paralisacaoFim','pt','ptNumero','ptSolicitante','ptEmitente',
+  'ptInicio','ptFim','obs'];
+function isSameReviewActivity(a,b){
+  if(!REVIEW_COMPARE_FIELDS.every(field=>normalizeReviewText(a[field])===normalizeReviewText(b[field]))) return false;
+  const photosA=a.photos || [], photosB=b.photos || [];
+  return photosA.length===photosB.length && photosA.every((p,i)=>p===photosB[i]);
+}
+function buildReviewWarnings(draft){
+  const warnings=draft.atividades.map(()=>[]);
+  draft.atividades.forEach((activity,i)=>{
+    if(isGenericReviewDescription(activity.atividade)){
+      warnings[i].push('A descrição parece genérica. Se possível, informe o serviço executado e o equipamento ou estrutura envolvidos.');
+    }
+    for(let j=0;j<i;j++){
+      if(isSameReviewActivity(activity,draft.atividades[j])){
+        warnings[i].push(`Esta atividade tem todos os dados iguais aos da Atividade ${j+1}. Confira se foi cadastrada duas vezes.`);
+        warnings[j].push(`Os dados desta atividade são iguais aos da Atividade ${i+1}. Confira se a repetição foi intencional.`);
+        break;
+      }
+    }
+  });
+  return warnings;
+}
 function closeReview(){
   document.getElementById('reviewOverlay').classList.remove('show');
   document.getElementById('reviewOverlay').setAttribute('aria-hidden','true');
@@ -1567,12 +1610,19 @@ function closeReview(){
 function openReview(draft){
   currentReview=draft;
   const count=draft.atividades.reduce((sum,a)=>sum+a.photos.length,0);
+  const warnings=buildReviewWarnings(draft);
+  const warningCount=warnings.reduce((total,item)=>total+item.length,0);
   const parts=[`<div class="review-section"><h3>Dados gerais</h3>
     ${reviewInfo('Data',draft.data)}${reviewInfo('Preenchido por',draft.preenchidoPor)}
     ${reviewInfo('Gerência',draft.gerencia)}${reviewInfo('Disciplina',draft.disciplina)}
     ${reviewInfo('Clima',draft.clima)}${reviewInfo('Fotos totais',count)}</div>`];
+  if(warningCount){
+    parts.push(`<div class="review-alert-summary" role="status"><strong>⚠ Confira ${warningCount} aviso${warningCount===1?'':'s'} antes de enviar</strong>Os avisos abaixo não impedem o envio. Volte ao formulário para corrigir se necessário.</div>`);
+  }
   draft.atividades.forEach((a,i) => {
+    const warningHtml=warnings[i].map(message=>`<div class="review-warning"><strong>⚠ Atenção</strong>${escapeHtml(message)}</div>`).join('');
     parts.push(`<div class="review-section"><h3>Atividade ${i+1}</h3>
+      ${warningHtml}
       ${reviewInfo('Local',a.local)}${reviewInfo('Mão de obra',a.maoDeObra)}
       ${reviewInfo('Equipamentos',a.equipamentos)}${reviewInfo('Atividade executada',a.atividade)}
       ${reviewInfo('Paralização',a.paralisacaoSim)}

@@ -44,6 +44,22 @@ button,input,select{font:inherit}
 @media(max-width:1200px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1050px){.filters{grid-template-columns:repeat(3,1fr)}.detail-grid{grid-template-columns:repeat(2,1fr)}.activity-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.topbar-inner{gap:10px}.top-logo{width:105px}.top-title strong{font-size:20px}.top-title span,.user-email{display:none}.container{padding:18px 12px 36px}.hero-row{align-items:flex-start;flex-direction:column}.filters{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.chart-wrap{height:260px}.detail-grid,.activity-grid{grid-template-columns:1fr}.login-card{padding:26px 20px}.hero-actions{width:100%}.hero-actions button{flex:1}.kpi-value{font-size:32px}}
+
+.excel-config-card{width:min(700px,100%);max-height:91vh;display:flex;flex-direction:column;overflow:hidden;background:white;border-radius:16px;box-shadow:0 28px 70px rgba(0,0,0,.28)}
+.excel-config-body{overflow-y:auto;padding:17px 20px;min-height:0;}
+.excel-config-help{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 12px;}
+.excel-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+.excel-toolbar .secondary-btn{font-size:12px;padding:8px 10px;}
+.excel-count{font-size:12px;color:var(--muted);margin-left:auto;}
+.excel-columns{display:grid;gap:6px;}
+.excel-column{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;background:#fbfcff;padding:8px 10px;min-height:43px;}
+.excel-column label{flex:1;min-width:0;display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;}
+.excel-column input{accent-color:var(--orange);width:17px;height:17px;flex-shrink:0;}
+.excel-move{width:29px;height:29px;flex-shrink:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:white;color:var(--navy);font-size:14px;cursor:pointer;}
+.excel-move:disabled{opacity:.28;cursor:not-allowed;}
+.excel-config-foot{display:flex;gap:9px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding:13px 20px;border-top:1px solid var(--line);background:#fff;}
+.excel-config-foot .primary-btn:disabled{opacity:.45;cursor:not-allowed;}
+@media(max-width:560px){.excel-config-body{padding:12px}.excel-config-foot{padding:12px}.excel-count{width:100%;margin:0}.excel-config-foot button{flex:1;}}
 </style>
 </head>
 <body>
@@ -119,6 +135,21 @@ button,input,select{font:inherit}
 
 <div id="loadingCover" class="loading-cover hidden"><div class="loader-box">Carregando dados do RDO…</div></div>
 <div id="detailModal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle">Detalhes do RDO</h3><button id="modalClose" class="close-btn">×</button></div><div id="modalBody" class="modal-body"></div></div></div>
+<div id="excelConfigModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="excelConfigTitle">
+  <div class="excel-config-card">
+    <div class="modal-head"><h3 id="excelConfigTitle">Configurar exportação Excel</h3><button type="button" id="excelConfigClose" class="close-btn" aria-label="Fechar">×</button></div>
+    <div class="excel-config-body">
+      <p class="excel-config-help">Escolha as colunas da aba <b>RDO Consolidado</b> e use ↑/↓ para ajustar a ordem. Os filtros atuais e a aba Resumo permanecem iguais. Sua escolha fica salva neste navegador após exportar.</p>
+      <div class="excel-toolbar">
+        <button type="button" id="excelSelectAll" class="secondary-btn">Marcar todas</button>
+        <button type="button" id="excelResetColumns" class="secondary-btn">Restaurar padrão</button>
+        <span id="excelColumnCount" class="excel-count" aria-live="polite"></span>
+      </div>
+      <div id="excelColumnList" class="excel-columns"></div>
+    </div>
+    <div class="excel-config-foot"><button type="button" id="excelConfigCancel" class="secondary-btn">Cancelar</button><button type="button" id="excelConfigExport" class="primary-btn">⬇ Gerar Excel</button></div>
+  </div>
+</div>
 <div id="toast" class="toast hidden"></div>
 
 <script>
@@ -377,22 +408,97 @@ async function downloadFilteredPhotos(){
   }
 }
 
+// Colunas da exportação original, na mesma ordem como padrão. Os dados vêm de state.filtered.
+const EXCEL_COLUMNS=[
+  {key:'data',title:'Data',width:12,get:r=>fmtDate(r.data)},
+  {key:'preenchido_por',title:'Preenchido por',width:22,get:r=>r.preenchido_por},
+  {key:'gerencia',title:'Gerência',width:22,get:r=>r.gerencia},
+  {key:'disciplina',title:'Disciplina',width:24,get:r=>r.disciplina},
+  {key:'clima',title:'Clima',width:20,get:r=>r.clima},
+  {key:'status',title:'Status',width:14,get:r=>r.status},
+  {key:'ordem',title:'Atividade nº',width:11,get:r=>r.ordem},
+  {key:'local',title:'Local',width:28,get:r=>r.local},
+  {key:'mao_obra',title:'Mão de obra',width:26,get:r=>r.mao_obra},
+  {key:'equipamentos',title:'Equipamentos',width:26,get:r=>r.equipamentos},
+  {key:'atividade',title:'Atividade executada',width:52,get:r=>r.atividade},
+  {key:'paralisacao',title:'Paralização',width:12,get:r=>r.paralisacao?'Sim':'Não'},
+  {key:'paralisacao_tipo',title:'Tipo da paralização',width:26,get:r=>r.paralisacao_tipo||''},
+  {key:'paralisacao_motivo',title:'Motivo da paralização',width:48,get:r=>r.paralisacao_motivo||''},
+  {key:'paralisacao_inicio',title:'Paralização início',width:16,get:r=>fmtTime(r.paralisacao_inicio)},
+  {key:'paralisacao_fim',title:'Paralização fim',width:16,get:r=>fmtTime(r.paralisacao_fim)},
+  {key:'pt',title:'PT',width:9,get:r=>r.pt?'Sim':'Não'},
+  {key:'pt_numero',title:'N° da PT',width:18,get:r=>r.pt_numero||''},
+  {key:'pt_solicitante',title:'Nome do solicitante',width:24,get:r=>r.pt_solicitante||''},
+  {key:'pt_emitente',title:'Nome do emitente',width:24,get:r=>r.pt_emitente||''},
+  {key:'pt_inicio',title:'PT início',width:14,get:r=>fmtTime(r.pt_inicio)},
+  {key:'pt_fim',title:'PT fim',width:14,get:r=>fmtTime(r.pt_fim)},
+  {key:'observacoes',title:'Observações',width:42,get:r=>r.observacoes||''},
+  {key:'fotos_count',title:'Qtd. fotos',width:11,get:r=>r.fotos.length},
+  {key:'foto_arquivos',title:'Arquivos de foto',width:48,get:r=>r.fotos.map(f=>f.arquivo).join(' | ')},
+  {key:'rdo_id',title:'ID RDO',width:38,get:r=>r.rdo_id},
+  {key:'atividade_id',title:'ID atividade',width:38,get:r=>r.atividade_id}
+];
+const EXCEL_COLUMNS_BY_KEY=new Map(EXCEL_COLUMNS.map(column=>[column.key,column]));
+const EXCEL_CONFIG_STORAGE_KEY='hc2-excel-columns-v1';
+const EXCEL_DEFAULT_ORDER=EXCEL_COLUMNS.map(column=>column.key);
+function loadExcelConfig(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(EXCEL_CONFIG_STORAGE_KEY));
+    if(saved && Array.isArray(saved.order) && Array.isArray(saved.selected)){
+      const known=new Set(EXCEL_DEFAULT_ORDER);
+      const order=[...new Set(saved.order.filter(key=>known.has(key))),...EXCEL_DEFAULT_ORDER.filter(key=>!saved.order.includes(key))];
+      const selected=new Set(saved.selected.filter(key=>known.has(key)));
+      if(selected.size) return {order,selected};
+    }
+  }catch(err){console.warn('Preferências de Excel indisponíveis:',err);}
+  return {order:[...EXCEL_DEFAULT_ORDER],selected:new Set(EXCEL_DEFAULT_ORDER)};
+}
+let excelConfig=loadExcelConfig();
+function renderExcelConfig(){
+  const list=el('excelColumnList');
+  list.innerHTML=excelConfig.order.map((key,index)=>{
+    const column=EXCEL_COLUMNS_BY_KEY.get(key);
+    return `<div class="excel-column">
+      <label><input type="checkbox" data-excel-key="${key}" ${excelConfig.selected.has(key)?'checked':''}>${escapeHtml(column.title)}</label>
+      <button type="button" class="excel-move" aria-label="Mover ${escapeHtml(column.title)} para cima" data-excel-index="${index}" data-excel-move="up" ${index===0?'disabled':''}>↑</button>
+      <button type="button" class="excel-move" aria-label="Mover ${escapeHtml(column.title)} para baixo" data-excel-index="${index}" data-excel-move="down" ${index===excelConfig.order.length-1?'disabled':''}>↓</button>
+    </div>`;
+  }).join('');
+  el('excelColumnCount').textContent=`${excelConfig.selected.size} de ${EXCEL_COLUMNS.length} colunas selecionadas`;
+  el('excelConfigExport').disabled=excelConfig.selected.size===0 || state.filtered.length===0;
+}
+function openExcelConfig(){
+  excelConfig=loadExcelConfig();
+  renderExcelConfig();
+  el('excelConfigModal').classList.remove('hidden');
+  el('excelConfigClose').focus();
+}
+function closeExcelConfig(){el('excelConfigModal').classList.add('hidden');el('exportBtn').focus();}
+function selectedExcelColumns(){return excelConfig.order.filter(key=>excelConfig.selected.has(key)).map(key=>EXCEL_COLUMNS_BY_KEY.get(key));}
 function exportExcel(){
-  if(!state.filtered.length){ toast('Não há dados para exportar.',true); return; }
-  const headers=['Data','Preenchido por','Gerência','Disciplina','Clima','Status','Atividade nº','Local','Mão de obra','Equipamentos','Atividade executada','Paralização','Tipo da paralização','Motivo da paralização','Paralização início','Paralização fim','PT','N° da PT','Nome do solicitante','Nome do emitente','PT início','PT fim','Observações','Qtd. fotos','Arquivos de foto','ID RDO','ID atividade'];
-  const data=state.filtered.map(r=>[fmtDate(r.data),r.preenchido_por,r.gerencia,r.disciplina,r.clima,r.status,r.ordem,r.local,r.mao_obra,r.equipamentos,r.atividade,r.paralisacao?'Sim':'Não',r.paralisacao_tipo||'',r.paralisacao_motivo||'',fmtTime(r.paralisacao_inicio),fmtTime(r.paralisacao_fim),r.pt?'Sim':'Não',r.pt_numero||'',r.pt_solicitante||'',r.pt_emitente||'',fmtTime(r.pt_inicio),fmtTime(r.pt_fim),r.observacoes||'',r.fotos.length,r.fotos.map(f=>f.arquivo).join(' | '),r.rdo_id,r.atividade_id]);
+  if(!state.filtered.length){toast('Não há dados para exportar.',true);return;}
+  const columns=selectedExcelColumns();
+  if(!columns.length){toast('Selecione ao menos uma coluna.',true);return;}
+  const headers=columns.map(column=>column.title);
+  const data=state.filtered.map(r=>columns.map(column=>column.get(r)??''));
   const ws=XLSX.utils.aoa_to_sheet([headers,...data]);
-  ws['!autofilter']={ref:`A1:AA${data.length+1}`}; ws['!freeze']={xSplit:0,ySplit:1};
-  ws['!cols']=[12,22,22,24,20,14,11,28,26,26,52,12,26,48,16,16,9,18,24,24,14,14,42,11,48,38,38].map(w=>({wch:w}));
+  ws['!autofilter']={ref:`A1:${XLSX.utils.encode_col(columns.length-1)}${data.length+1}`};
+  ws['!freeze']={xSplit:0,ySplit:1};
+  ws['!cols']=columns.map(column=>({wch:column.width}));
   const distinctRdos=new Set(state.filtered.map(r=>r.rdo_id)).size, totalFotos=state.filtered.reduce((s,r)=>s+r.fotos.length,0), totalPt=state.filtered.filter(r=>r.pt).length;
   const counts={}; state.filtered.forEach(r=>counts[r.disciplina||'Sem disciplina']=(counts[r.disciplina||'Sem disciplina']||0)+1);
   const plan=STORAGE_PLANS[el('storagePlan')?.value||'free']||STORAGE_PLANS.free;
   const resumo=[['RESUMO RDO - CONSÓRCIO HC²',''],['Gerado em',new Date().toLocaleString('pt-BR')],['RDOs',distinctRdos],['Atividades',state.filtered.length],['Fotos',totalFotos],['Atividades com PT',totalPt],['Armazenamento de fotos',state.storageLoaded?fmtBytes(state.storageBytes):'Não calculado'],['Arquivos no bucket',state.storageLoaded?state.storageFiles:'—'],['Plano considerado',`${plan.label} (${fmtBytes(plan.bytes)})`],[],['Atividades por disciplina','Quantidade'],...Object.entries(counts).sort((a,b)=>b[1]-a[1])];
   const ws2=XLSX.utils.aoa_to_sheet(resumo); ws2['!cols']=[{wch:34},{wch:20}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'RDO Consolidado'); XLSX.utils.book_append_sheet(wb,ws2,'Resumo');
-  const ini=el('fDataIni').value||'inicio', fim=el('fDataFim').value||'hoje'; XLSX.writeFile(wb,`RDO_Consolidado_${ini}_a_${fim}.xlsx`);
-  toast('Excel gerado com as abas RDO Consolidado e Resumo.');
+  try{localStorage.setItem(EXCEL_CONFIG_STORAGE_KEY,JSON.stringify({order:excelConfig.order,selected:[...excelConfig.selected]}));}
+  catch(err){console.warn('Não foi possível salvar a preferência de Excel neste navegador:',err);}
+  const ini=el('fDataIni').value||'inicio', fim=el('fDataFim').value||'hoje';
+  XLSX.writeFile(wb,`RDO_Consolidado_${ini}_a_${fim}.xlsx`);
+  closeExcelConfig();
+  toast(`Excel gerado com ${columns.length} coluna(s), respeitando os filtros atuais.`);
 }
+
 
 async function login(e){
   e.preventDefault(); el('loginError').textContent=''; const btn=el('loginBtn'); btn.disabled=true; btn.textContent='Entrando…';
@@ -411,7 +517,33 @@ function scheduleSilentRefresh(){ clearTimeout(state.refreshTimer); state.refres
 ['fDataIni','fDataFim','fDisciplina','fGerencia','fLocal','fStatus'].forEach(id=>el(id).addEventListener('change',applyFilters));
 const savedStoragePlan=localStorage.getItem('hc2-storage-plan')||'free'; if(STORAGE_PLANS[savedStoragePlan]) el('storagePlan').value=savedStoragePlan;
 el('storagePlan').addEventListener('change',()=>{ localStorage.setItem('hc2-storage-plan',el('storagePlan').value); renderStorageUsage(); });
-el('refreshBtn').addEventListener('click',()=>loadData()); el('downloadPhotosBtn').addEventListener('click',downloadFilteredPhotos); el('exportBtn').addEventListener('click',exportExcel); el('loginForm').addEventListener('submit',login); el('logoutBtn').addEventListener('click',logout); el('modalClose').addEventListener('click',()=>el('detailModal').classList.add('hidden')); el('detailModal').addEventListener('click',e=>{if(e.target===el('detailModal'))el('detailModal').classList.add('hidden')});
+el('refreshBtn').addEventListener('click',()=>loadData()); el('downloadPhotosBtn').addEventListener('click',downloadFilteredPhotos); el('exportBtn').addEventListener('click',openExcelConfig); el('loginForm').addEventListener('submit',login); el('logoutBtn').addEventListener('click',logout); el('modalClose').addEventListener('click',()=>el('detailModal').classList.add('hidden')); el('detailModal').addEventListener('click',e=>{if(e.target===el('detailModal'))el('detailModal').classList.add('hidden')});
+
+
+el('excelConfigClose').addEventListener('click',closeExcelConfig);
+el('excelConfigCancel').addEventListener('click',closeExcelConfig);
+el('excelConfigModal').addEventListener('click',event=>{if(event.target===el('excelConfigModal')) closeExcelConfig();});
+el('excelConfigExport').addEventListener('click',exportExcel);
+el('excelSelectAll').addEventListener('click',()=>{excelConfig.selected=new Set(EXCEL_DEFAULT_ORDER);renderExcelConfig();});
+el('excelResetColumns').addEventListener('click',()=>{excelConfig={order:[...EXCEL_DEFAULT_ORDER],selected:new Set(EXCEL_DEFAULT_ORDER)};renderExcelConfig();});
+el('excelColumnList').addEventListener('change',event=>{
+  const input=event.target.closest('input[data-excel-key]');
+  if(!input) return;
+  if(input.checked) excelConfig.selected.add(input.dataset.excelKey);
+  else excelConfig.selected.delete(input.dataset.excelKey);
+  renderExcelConfig();
+});
+el('excelColumnList').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-excel-move]');
+  if(!button || button.disabled) return;
+  const from=Number(button.dataset.excelIndex);
+  const to=from+(button.dataset.excelMove==='up'?-1:1);
+  if(to<0 || to>=excelConfig.order.length) return;
+  [excelConfig.order[from],excelConfig.order[to]]=[excelConfig.order[to],excelConfig.order[from]];
+  renderExcelConfig();
+  const next=el('excelColumnList').querySelector(`button[data-excel-index="${to}"][data-excel-move="${button.dataset.excelMove}"]`);
+  if(next && !next.disabled) next.focus();
+});
 
 (async()=>{ const {data}=await db.auth.getSession(); if(data.session) await showApp(data.session); })();
 </script>
