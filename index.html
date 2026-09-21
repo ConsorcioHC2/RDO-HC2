@@ -11,7 +11,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RDO HC²">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
@@ -291,6 +290,8 @@
     margin-bottom:2px;
   }
   .pt-horarios .field{ flex:1 1 180px; min-width:0; }
+  .pt-horarios .paralisacao-motivo-field{ flex:1 1 100%; }
+  .paralisacao-motivo-field textarea{ min-height:92px; }
 
   /* stamp */
   .stamp-overlay{
@@ -585,6 +586,31 @@
     .help-header{ flex-direction:column; }
   }
 
+
+  /* RDO - rascunho local, fila offline e conferência */
+  .pending-count{ display:inline-block; font-size:12px; border:1px solid rgba(255,255,255,.22); border-radius:999px; padding:2px 7px; margin-left:4px; color:#ffe3d5; }
+  .draft-status{ max-width:640px; margin:4px auto 0; padding:0 16px; color:#cbd2e4; font-size:12px; line-height:1.6; }
+  .offline-notice{ padding:12px 14px; background:rgba(230,109,55,.10); border:1px solid rgba(230,109,55,.24); border-radius:10px; font-size:13px; color:#ffe0d1; margin-top:14px; }
+  .pending-list{display:grid; gap:12px; margin-top:16px;}
+  .pending-item{padding:16px; background:rgba(255,255,255,.05); border-radius:12px; border:1px solid rgba(255,255,255,.12);}
+  .pending-item strong{display:block; font-size:15px; margin-bottom:6px; color:#fff;}
+  .pending-item span{display:block; color:#cbd2e4; font-size:13px; line-height:1.55;}
+  .pending-item .pending-state{color:#ffd3bf; margin-top:8px; overflow-wrap:anywhere;}
+  .pending-empty{font-size:14px; color:#cbd2e4; background:rgba(255,255,255,.04); border-radius:12px; padding:22px 14px; text-align:center;}
+  .review-overlay{display:none; position:fixed; inset:0; z-index:90; background:rgba(7,12,31,.88); padding:16px; align-items:center; justify-content:center;}
+  .review-overlay.show{display:flex;}
+  .review-box{width:min(640px,100%);max-height:92vh;overflow:auto;background:#f7f8fc;color:#182555;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.48);}
+  .review-box h2{font-size:24px;margin:0 0 6px;}
+  .review-lead{color:#53607e;font-size:13px;line-height:1.5;margin:0 0 14px;}
+  .review-body{display:grid;gap:12px;max-height:58vh;overflow:auto;}
+  .review-section{background:white;border:1px solid #d8deec;border-radius:10px;padding:14px;}
+  .review-section h3{margin:0 0 8px;font-size:16px;}
+  .review-section p{font-size:13px;line-height:1.5;margin:6px 0;overflow-wrap:anywhere;white-space:pre-wrap;}
+  .review-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+  .review-actions button{flex:1;}
+  .review-actions .home-secondary-btn{background:#e7eafa;color:#182555;border:1px solid #cdd6ee;}
+  @media(max-width:580px){.review-actions{flex-direction:column-reverse;}.review-box{padding:18px;}}
+
 </style>
 </head>
 <body>
@@ -604,6 +630,13 @@
       <button type="button" class="home-card" onclick="goToHelp()">
         <strong>Como preencher</strong>
         <span>Veja um passo a passo rápido para orientar o preenchimento.</span>
+      </button>
+    </div>
+
+    <div class="home-grid">
+      <button type="button" class="home-card" onclick="goToPending()">
+        <strong>📤 RDOs pendentes <span id="homePendingCount" class="pending-count">0</span></strong>
+        <span>Registros salvos neste aparelho, aguardando envio.</span>
       </button>
     </div>
 
@@ -642,11 +675,32 @@
   </section>
 </div>
 
+<div id="pendingScreen" class="home-shell hidden-screen">
+  <section class="help-panel">
+    <div class="help-header">
+      <div>
+        <span class="home-badge">No seu aparelho</span>
+        <h2 class="help-title">RDOs pendentes <span id="pendingCount" class="pending-count">0</span></h2>
+        <p class="help-text">Registros e fotos ficam guardados neste navegador até que o envio seja concluído. Não limpe os dados do aplicativo enquanto houver pendências.</p>
+      </div>
+      <button type="button" class="quick-btn" onclick="goToHome()">← Início</button>
+    </div>
+    <div id="connectionStatus" class="offline-notice" role="status"></div>
+    <div id="pendingList" class="pending-list" aria-live="polite"></div>
+    <div class="help-actions">
+      <button type="button" class="home-main-btn" id="sendPendingBtn" onclick="sendPendingNow()">↻ Enviar pendentes</button>
+      <button type="button" class="home-secondary-btn" onclick="goToForm()">Novo RDO</button>
+    </div>
+  </section>
+</div>
+
 <div id="formScreen" class="hidden-screen">
   <div class="quick-nav">
     <button type="button" class="quick-btn" onclick="goToHome()">← Início</button>
     <button type="button" class="quick-btn primary" onclick="goToHelp()">Ajuda rápida</button>
+    <button type="button" class="quick-btn" onclick="goToPending()">Pendentes <span id="formPendingCount" class="pending-count">0</span></button>
   </div>
+  <div class="draft-status" id="draftStatus" role="status" aria-live="polite">Preparando salvamento automático…</div>
 
 <header>
   <div class="header-inner">
@@ -698,10 +752,22 @@
 
     <button type="button" class="add-bloco-btn" onclick="addBloco()">+ Adicionar outra Atividade</button>
 
-    <button class="submit-btn" id="submitBtn" disabled onclick="enviarRegistro()" style="margin-top:18px;">➜ Enviar registro</button>
+    <button class="submit-btn" id="submitBtn" disabled onclick="enviarRegistro()" style="margin-top:18px;">➜ Revisar e enviar RDO</button>
     <div class="hint" id="hint">Preencha quem preencheu, gerência da área, disciplina, clima e, em cada atividade, local, mão de obra, equipamentos e atividade (mínimo 30 caracteres). Foto é obrigatória só quando a disciplina for Construção e Montagem ou Comissionamento.</div>
   </div>
 </main>
+</div>
+
+<div id="reviewOverlay" class="review-overlay" role="dialog" aria-modal="true" aria-labelledby="reviewTitle" aria-hidden="true">
+  <div class="review-box">
+    <h2 id="reviewTitle">Revise seu RDO</h2>
+    <p class="review-lead">Confira os dados antes de confirmar. Depois de confirmado, o registro será salvo em pendentes e enviado quando houver internet.</p>
+    <div id="reviewBody" class="review-body"></div>
+    <div class="review-actions">
+      <button type="button" class="home-secondary-btn" onclick="closeReview()">Voltar e corrigir</button>
+      <button type="button" class="home-main-btn" id="confirmReviewBtn" onclick="confirmReview()">Confirmar RDO</button>
+    </div>
+  </div>
 </div>
 
 <div class="stamp-overlay" id="stampOverlay">
@@ -723,7 +789,8 @@ function switchScreen(screen){
   const map = {
     home: document.getElementById('homeScreen'),
     help: document.getElementById('helpScreen'),
-    form: document.getElementById('formScreen')
+    form: document.getElementById('formScreen'),
+    pending: document.getElementById('pendingScreen')
   };
   Object.entries(map).forEach(([key, el]) => el.classList.toggle('hidden-screen', key !== screen));
   window.scrollTo({ top: 0, behavior: 'auto' });
@@ -733,12 +800,14 @@ function renderScreenFromHash(){
   const hash = (window.location.hash || '#inicio').replace('#', '');
   if (hash === 'novo-rdo') switchScreen('form');
   else if (hash === 'ajuda') switchScreen('help');
+  else if (hash === 'pendentes') { switchScreen('pending'); renderPending(); }
   else switchScreen('home');
 }
 
 function goToHome(){ window.location.hash = 'inicio'; }
 function goToHelp(){ window.location.hash = 'ajuda'; }
 function goToForm(){ window.location.hash = 'novo-rdo'; }
+function goToPending(){ window.location.hash = 'pendentes'; }
 
 window.addEventListener('hashchange', renderScreenFromHash);
 
@@ -798,7 +867,27 @@ let blocoPhotos = {};
 
 const SUPABASE_URL = 'https://dnbaeqrycwcikzceonwa.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5woMVhcoLEr3Rj2M31zraw_iTsYZ-7j';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let supabaseClient = null;
+let supabaseLoading = null;
+async function getSupabaseClient(){
+  if (supabaseClient) return supabaseClient;
+  if (!supabaseLoading) {
+    supabaseLoading = new Promise((resolve, reject) => {
+      if (window.supabase) { resolve(window.supabase); return; }
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      script.onload = () => window.supabase ? resolve(window.supabase) : reject(new Error('Biblioteca de envio indisponível.'));
+      script.onerror = () => reject(new Error('Não foi possível carregar a conexão com o servidor.'));
+      document.head.appendChild(script);
+    }).catch(err => { supabaseLoading = null; throw err; });
+  }
+  const sdk = await supabaseLoading;
+  // The public form must not reuse an administrator's authentication session.
+  supabaseClient = sdk.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+  return supabaseClient;
+}
 
 function hojeLocalISO(){
   const agora = new Date();
@@ -887,9 +976,10 @@ function addBloco(dados){
           <option value="Demais paralizações">Demais paralizações</option>
         </select>
       </div>
-      <div class="field">
+      <div class="field paralisacao-motivo-field">
         <label>Motivo da paralização <span class="req">*</span></label>
         <textarea id="paralisacao-motivo-${id}" placeholder="Descreva exatamente o motivo da paralização"></textarea>
+        <div class="hint" style="margin-top:6px;">Descreva livremente o motivo da paralização.</div>
       </div>
       <div class="field">
         <label>Horário de início <span class="req">*</span></label>
@@ -987,6 +1077,8 @@ function addBloco(dados){
 
   updateBlocoHeaders();
   validateForm();
+  scheduleDraftSave();
+  return id;
 }
 
 function duplicarBloco(idOrigem){
@@ -1059,6 +1151,7 @@ function removeBloco(id){
   if (el) el.remove();
   updateBlocoHeaders();
   validateForm();
+  scheduleDraftSave();
 }
 
 function updateBlocoHeaders(){
@@ -1088,6 +1181,7 @@ async function handleFotos(id, e){
   }
   renderThumbsFor(id);
   validateForm();
+  scheduleDraftSave();
   e.target.value = '';
 }
 
@@ -1138,6 +1232,7 @@ function removePhoto(id, i){
   blocoPhotos[id].splice(i, 1);
   renderThumbsFor(id);
   validateForm();
+  scheduleDraftSave();
 }
 
 function validateForm(){
@@ -1179,7 +1274,7 @@ function validateForm(){
     }
     if (!local || !maoObra || !equipamentos || !atividadeOk || !fotoOk || !paralisacaoOk || !ptOk) { ok = false; break; }
   }
-  document.getElementById('submitBtn').disabled = !ok;
+  document.getElementById('submitBtn').disabled = !ok || !localReady;
 }
 
 function atualizarContadorAtividade(id){
@@ -1208,53 +1303,361 @@ function dataURLtoBlob(dataUrl){
   return new Blob([bytes], { type: mime });
 }
 
-async function uploadFotosDoRdo(rdoId, atividades){
-  const fotosParaBanco = [];
-  const totalFotos = atividades.reduce((total, item) => total + item.photos.length, 0);
-  let enviadas = 0;
+// Local data and photos are stored in IndexedDB (not localStorage).
+const LOCAL_DB_NAME = 'rdo-hc2-local-v1';
+let localDbPromise = null;
+let localReady = false;
+let draftPaused = true;
+let draftTimer = null;
+let draftWriteChain = Promise.resolve();
+let currentReview = null;
+let queueSending = null;
+let syncNoticeShown = false;
 
-  for (const item of atividades) {
-    for (let i = 0; i < item.photos.length; i++) {
-      enviadas += 1;
-      const btn = document.getElementById('submitBtn');
-      btn.textContent = `Enviando fotos ${enviadas}/${totalFotos}…`;
-
-      const blob = dataURLtoBlob(item.photos[i]);
-      const nomeArquivo = `foto-${i + 1}.jpg`;
-      const caminho = `${rdoId}/${item.id}/${nomeArquivo}`;
-
-      const { error: uploadError } = await supabaseClient.storage
-        .from('fotos-rdo')
-        .upload(caminho, blob, {
-          contentType: 'image/jpeg',
-          cacheControl: '3600',
-          upsert: false
+function dbOpen(){
+  if (!localDbPromise) {
+    localDbPromise = new Promise((resolve,reject) => {
+      if (!window.indexedDB) return reject(new Error('Armazenamento local indisponível.'));
+      const request = indexedDB.open(LOCAL_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts',{keyPath:'key'});
+        if (!db.objectStoreNames.contains('pending')) db.createObjectStore('pending',{keyPath:'id'});
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Não foi possível abrir o armazenamento local.'));
+      request.onblocked = () => reject(new Error('Feche outras abas antigas do RDO e tente novamente.'));
+    }).catch(err => { localDbPromise=null; throw err; });
+  }
+  return localDbPromise;
+}
+async function localOperation(storeName, method, value){
+  const db=await dbOpen();
+  return new Promise((resolve,reject) => {
+    const tx=db.transaction(storeName, method === 'get' || method === 'getAll' ? 'readonly':'readwrite');
+    const store=tx.objectStore(storeName);
+    let result;
+    const request=method === 'getAll' ? store.getAll() : store[method](value);
+    request.onsuccess=() => { result=request.result; };
+    tx.oncomplete=() => resolve(result);
+    tx.onerror=() => reject(tx.error || new Error('Não foi possível salvar no aparelho.'));
+    tx.onabort=() => reject(tx.error || new Error('Armazenamento do aparelho interrompido.'));
+  });
+}
+function readValue(id){return document.getElementById(id).value;}
+function collectDraft(){
+  return {
+    key:'current', updatedAt:new Date().toISOString(),
+    data:readValue('fData'), preenchidoPor:readValue('fPreenchidoPor'),
+    gerencia:readValue('fResp'), disciplina:readValue('fDisciplina'), clima:readValue('fClima'),
+    atividades:blocoIds.map(id => ({
+      local:readValue('local-'+id), maoDeObra:readValue('maoobra-'+id),
+      equipamentos:readValue('equipamentos-'+id), atividade:readValue('atividade-'+id),
+      paralisacaoSim:readValue('paralisacao-sim-'+id),paralisacaoTipo:readValue('paralisacao-tipo-'+id),
+      paralisacaoMotivo:readValue('paralisacao-motivo-'+id),
+      paralisacaoInicio:readValue('paralisacao-inicio-'+id),paralisacaoFim:readValue('paralisacao-fim-'+id),
+      pt:readValue('pt-'+id), ptNumero:readValue('pt-numero-'+id),
+      ptSolicitante:readValue('pt-solicitante-'+id), ptEmitente:readValue('pt-emitente-'+id),
+      ptInicio:readValue('pt-inicio-'+id),ptFim:readValue('pt-fim-'+id),
+      obs:readValue('obs-'+id), photos:[...blocoPhotos[id]]
+    }))
+  };
+}
+function draftStatus(message){ document.getElementById('draftStatus').textContent=message; }
+function scheduleDraftSave(){
+  if (!localReady || draftPaused) return;
+  draftStatus('Salvando rascunho no aparelho…');
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(() => { saveDraftNow().catch(err => console.error(err)); }, 750);
+}
+function saveDraftNow(){
+  clearTimeout(draftTimer);
+  if (!localReady || draftPaused) return draftWriteChain;
+  const snapshot=collectDraft();
+  draftWriteChain=draftWriteChain.catch(() => {}).then(async() => {
+    await localOperation('drafts','put',snapshot);
+    draftStatus('Rascunho salvo neste aparelho às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'.');
+  }).catch(err => {
+    draftStatus('⚠ Falha ao salvar rascunho. Não feche esta página; verifique o espaço disponível no aparelho.');
+    throw err;
+  });
+  return draftWriteChain;
+}
+async function restoreDraft(){
+  const saved=await localOperation('drafts','get','current');
+  if (!saved){addBloco();return;}
+  document.getElementById('fData').value=saved.data || hojeLocalISO();
+  document.getElementById('fPreenchidoPor').value=saved.preenchidoPor || '';
+  document.getElementById('fResp').value=saved.gerencia || '';
+  document.getElementById('fDisciplina').value=saved.disciplina || '';
+  document.getElementById('fClima').value=saved.clima || '';
+  const atividades=saved.atividades?.length ? saved.atividades : [{}];
+  atividades.forEach(a => {
+    const id=addBloco(a);
+    blocoPhotos[id]=Array.isArray(a.photos) ? a.photos : [];
+    renderThumbsFor(id);
+  });
+  toggleFotoObrigatoriaTodos();
+  validateForm();
+  draftStatus('Rascunho recuperado deste aparelho. Continue de onde parou.');
+}
+function hasDuplicatePrimaryKey(err, table){
+  return err?.code === '23505' && String(err.message || '').includes(table+'_pkey');
+}
+function isExistingPhoto(err){
+  return String(err?.statusCode || err?.status || '')==='409' || /already exists|duplicate/i.test(String(err?.message || ''));
+}
+function buildQueueRecord(draft){
+  const id=gerarUuid();
+  return {
+    id,savedAt:new Date().toISOString(),status:'pending',lastError:'',
+    rdo:{id, data:draft.data, preenchido_por:draft.preenchidoPor.trim(),
+      gerencia:draft.gerencia.trim(),disciplina:draft.disciplina,clima:draft.clima,status:'Enviado'},
+    atividades:draft.atividades.map((a,i) => {
+      const ativo=a.pt==='Sim', paralisada=a.paralisacaoSim==='Sim';
+      return {
+        id:gerarUuid(),rdo_id:id,ordem:i+1,local:a.local,mao_obra:a.maoDeObra.trim(),
+        equipamentos:a.equipamentos.trim(),atividade:a.atividade.trim(),
+        paralisacao_sim:paralisada,
+        paralisacao:paralisada ? a.paralisacaoMotivo.trim() : null,
+        paralisacao_tipo:paralisada ? a.paralisacaoTipo : null,
+        paralisacao_inicio:paralisada ? a.paralisacaoInicio : null,
+        paralisacao_fim:paralisada ? a.paralisacaoFim : null,
+        pt:ativo, pt_numero:ativo?a.ptNumero.trim():null,
+        pt_solicitante:ativo?a.ptSolicitante.trim():null,
+        pt_emitente:ativo?a.ptEmitente.trim():null,
+        pt_inicio:ativo?a.ptInicio:null,pt_fim:ativo?a.ptFim:null,
+        observacoes:a.obs.trim() || null,
+        photos:a.photos.map((dataUrl,j)=>({
+          id:gerarUuid(), ordem:j+1, dataUrl,
+          arquivo:`${id}/PLACEHOLDER/foto-${j+1}.jpg`,nome_original:`foto-${j+1}.jpg`
+        }))
+      };
+    }),
+    progress:{rdo:false,activities:[],uploads:[],photoRows:[]}
+  };
+}
+function completePhotoPaths(record){
+  record.atividades.forEach(a => a.photos.forEach(p => {
+    p.arquivo=`${record.id}/${a.id}/${p.nome_original}`;
+  }));
+  return record;
+}
+function noPhotoPayload(a){
+  const {photos, ...atividade}=a;
+  return atividade;
+}
+async function persistPending(record){await localOperation('pending','put',record);}
+async function sendRecord(record){
+  const client=await getSupabaseClient();
+  record.status='sending'; record.lastError='';
+  await persistPending(record); await renderPending();
+  if (!record.progress.rdo){
+    const {error}=await client.from('rdo').insert(record.rdo);
+    if(error && !hasDuplicatePrimaryKey(error,'rdo')) throw error;
+    record.progress.rdo=true; await persistPending(record);
+  }
+  for(const a of record.atividades){
+    if (!record.progress.activities.includes(a.id)){
+      const {error}=await client.from('atividades').insert(noPhotoPayload(a));
+      if(error && !hasDuplicatePrimaryKey(error,'atividades')) throw error;
+      record.progress.activities.push(a.id); await persistPending(record);
+    }
+    for(const photo of a.photos){
+      const file=photo.arquivo;
+      if (!record.progress.uploads.includes(photo.id)){
+        const {error}=await client.storage.from('fotos-rdo').upload(file,dataURLtoBlob(photo.dataUrl),{
+          contentType:'image/jpeg',cacheControl:'3600',upsert:false
         });
-
-      if (uploadError) {
-        throw new Error(`Falha ao enviar foto da atividade ${item.ordem}: ${uploadError.message}`);
+        if(error && !isExistingPhoto(error)) throw error;
+        record.progress.uploads.push(photo.id); await persistPending(record);
       }
-
-      fotosParaBanco.push({
-        id: gerarUuid(),
-        atividade_id: item.id,
-        ordem: i + 1,
-        arquivo: caminho,
-        nome_original: nomeArquivo
-      });
+      if (!record.progress.photoRows.includes(photo.id)){
+        const {error}=await client.from('fotos').insert({
+          id:photo.id,atividade_id:a.id,ordem:photo.ordem,arquivo:file,nome_original:photo.nome_original
+        });
+        if(error && !hasDuplicatePrimaryKey(error,'fotos')) throw error;
+        record.progress.photoRows.push(photo.id); await persistPending(record);
+      }
     }
   }
-
-  if (fotosParaBanco.length) {
-    const { error: fotosError } = await supabaseClient
-      .from('fotos')
-      .insert(fotosParaBanco);
-
-    if (fotosError) {
-      throw new Error(`Falha ao registrar as fotos: ${fotosError.message}`);
+  // Mark complete before removal: a local deletion failure must not trigger a re-send.
+  record.status='sent';await persistPending(record);
+  await localOperation('pending','delete',record.id);
+}
+async function refreshPendingCounts(){
+  if(!localReady) return;
+  const all=await localOperation('pending','getAll');
+  const n=all.filter(r => r.status !== 'sent').length;
+  ['homePendingCount','formPendingCount','pendingCount'].forEach(id => {
+    document.getElementById(id).textContent=n;
+  });
+}
+async function renderPending(){
+  if(!localReady) return;
+  const all=await localOperation('pending','getAll');
+  const records=all.filter(r => r.status !== 'sent').sort((a,b)=>a.savedAt.localeCompare(b.savedAt));
+  const online=navigator.onLine;
+  document.getElementById('connectionStatus').textContent=online
+    ? 'Internet detectada. Se houver registros, você pode enviar agora.'
+    : 'Sem conexão. Os RDOs e fotos continuam salvos neste aparelho até o envio.';
+  const list=document.getElementById('pendingList');
+  list.innerHTML='';
+  if(!records.length){
+    list.innerHTML='<div class="pending-empty">Nenhum RDO pendente neste aparelho.</div>';
+  }
+  for(const r of records){
+    const el=document.createElement('article');el.className='pending-item';
+    const photoCount=r.atividades.reduce((total,a)=>total+a.photos.length,0);
+    const status=r.status==='sending'?'Enviando…':r.status==='failed'?'Falha no envio; tente novamente.':'Aguardando envio';
+    const title=document.createElement('strong');
+    title.textContent=`${r.rdo.data} · ${r.rdo.disciplina}`;
+    const sub=document.createElement('span');
+    sub.textContent=`${r.rdo.preenchido_por} · ${r.atividades.length} atividade(s) · ${photoCount} foto(s)`;
+    const msg=document.createElement('span');msg.className='pending-state';msg.textContent=status;
+    el.append(title,sub,msg);
+    if(r.lastError){const m=document.createElement('span');m.textContent='Última tentativa: '+r.lastError;el.appendChild(m);}
+    list.appendChild(el);
+  }
+  document.getElementById('sendPendingBtn').disabled=!!queueSending || !records.length;
+  await refreshPendingCounts();
+}
+async function syncPending({manual=false}={}){
+  if(queueSending) return queueSending;
+  if(!localReady) return;
+  if(!navigator.onLine){
+    await renderPending();
+    if(manual) await showAlert('Sem internet. O RDO e as fotos permanecem salvos em Pendentes neste aparelho.');
+    return;
+  }
+  queueSending=(async() => {
+    const items=await localOperation('pending','getAll');
+    let ok=0,errors=0;
+    for(const record of items.filter(r=>r.status!=='sent').sort((a,b)=>a.savedAt.localeCompare(b.savedAt))){
+      try { await sendRecord(record); ok++; }
+      catch(err){
+        console.error('Falha ao sincronizar RDO pendente',err);
+        record.status='failed';
+        record.lastError=String(err?.message || 'Conexão indisponível.').slice(0,240);
+        try{ await persistPending(record); }catch(e){console.error('Falha ao salvar erro de sincronização',e);}
+        errors++;
+        if(!navigator.onLine) break;
+      }
     }
+    return {ok,errors};
+  })();
+  let result;
+  try{result=await queueSending;}
+  finally{queueSending=null;await renderPending().catch(console.error);}
+  if(manual){
+    if(result.ok && !result.errors) await showAlert(`${result.ok} RDO(s) enviado(s) com sucesso.`);
+    else if(result.errors) await showAlert('Alguns registros ainda não foram enviados. Eles continuam salvos em Pendentes para nova tentativa.');
+    else await showAlert('Não há RDOs aguardando envio.');
+  }
+  return result;
+}
+async function sendPendingNow(){ await syncPending({manual:true}); }
+function reviewInfo(label,value){return `<p><b>${escapeHtml(label)}:</b> ${escapeHtml(String(value || '—'))}</p>`;}
+function closeReview(){
+  document.getElementById('reviewOverlay').classList.remove('show');
+  document.getElementById('reviewOverlay').setAttribute('aria-hidden','true');
+  currentReview=null;
+  document.getElementById('submitBtn').focus();
+}
+function openReview(draft){
+  currentReview=draft;
+  const count=draft.atividades.reduce((sum,a)=>sum+a.photos.length,0);
+  const parts=[`<div class="review-section"><h3>Dados gerais</h3>
+    ${reviewInfo('Data',draft.data)}${reviewInfo('Preenchido por',draft.preenchidoPor)}
+    ${reviewInfo('Gerência',draft.gerencia)}${reviewInfo('Disciplina',draft.disciplina)}
+    ${reviewInfo('Clima',draft.clima)}${reviewInfo('Fotos totais',count)}</div>`];
+  draft.atividades.forEach((a,i) => {
+    parts.push(`<div class="review-section"><h3>Atividade ${i+1}</h3>
+      ${reviewInfo('Local',a.local)}${reviewInfo('Mão de obra',a.maoDeObra)}
+      ${reviewInfo('Equipamentos',a.equipamentos)}${reviewInfo('Atividade executada',a.atividade)}
+      ${reviewInfo('Paralização',a.paralisacaoSim)}
+      ${a.paralisacaoSim==='Sim'?reviewInfo('Tipo',a.paralisacaoTipo)+reviewInfo('Motivo',a.paralisacaoMotivo)+reviewInfo('Horário',a.paralisacaoInicio+' a '+a.paralisacaoFim):''}
+      ${reviewInfo('PT',a.pt)}
+      ${a.pt==='Sim'?reviewInfo('Nº PT',a.ptNumero)+reviewInfo('Solicitante',a.ptSolicitante)+reviewInfo('Emitente',a.ptEmitente)+reviewInfo('Horário PT',a.ptInicio+' a '+a.ptFim):''}
+      ${reviewInfo('Observações',a.obs)}${reviewInfo('Fotos',a.photos.length)}</div>`);
+  });
+  document.getElementById('reviewBody').innerHTML=parts.join('');
+  document.getElementById('reviewOverlay').classList.add('show');
+  document.getElementById('reviewOverlay').setAttribute('aria-hidden','false');
+  document.getElementById('confirmReviewBtn').focus();
+}
+async function confirmReview(){
+  if(!currentReview) return;
+  const confirm=document.getElementById('confirmReviewBtn');
+  confirm.disabled=true; confirm.textContent='Salvando no aparelho…';
+  let queued=false;
+  try{
+    // Never clear the editable draft before the full record, including photos, is queued.
+    await saveDraftNow();
+    const record=completePhotoPaths(buildQueueRecord(currentReview));
+    await persistPending(record);
+    queued=true;
+    closeReview();
+    draftPaused=true;
+    clearTimeout(draftTimer);
+    await draftWriteChain.catch(()=>{});
+    await localOperation('drafts','delete','current');
+    resetForm();
+    draftPaused=false;
+    draftStatus('Pronto para preencher outro RDO. Seus registros confirmados ficam em Pendentes até serem enviados.');
+    await refreshPendingCounts();
+    goToPending();
+    if(navigator.onLine){
+      await syncPending();
+      if(!(await localOperation('pending','get',record.id))) await showAlert('RDO enviado com sucesso para o sistema HC².');
+      else await showAlert('RDO salvo em Pendentes neste aparelho. Não foi possível concluir o envio agora; tente novamente quando houver internet.');
+    }else{
+      await renderPending();
+      await showAlert('RDO e fotos salvos em Pendentes neste aparelho. Serão enviados quando a conexão voltar e o aplicativo estiver aberto.');
+    }
+  }catch(err){
+    console.error('Falha no envio ou armazenamento do RDO',err);
+    if(document.getElementById('reviewOverlay').classList.contains('show')) closeReview();
+    if(queued){
+      goToPending();
+      await showAlert('O RDO já foi guardado em Pendentes neste aparelho, mas houve uma falha na etapa seguinte. Não confirme novamente; consulte Pendentes antes de tentar enviar.');
+    }else{
+      await showAlert('Não foi possível salvar este RDO no aparelho. Os dados continuam no formulário. Verifique o espaço disponível e tente novamente.');
+    }
+  }finally{
+    confirm.disabled=false;confirm.textContent='Confirmar RDO';
   }
 }
+async function inicializarAplicativo(){
+  try{
+    await dbOpen();
+    await restoreDraft();
+    localReady=true;draftPaused=false;
+    validateForm();
+    if(!document.getElementById('draftStatus').textContent.includes('recuperado')){
+      draftStatus('Salvamento automático ativo neste aparelho.');
+    }
+    await refreshPendingCounts();
+    await renderPending();
+    if(navigator.onLine) syncPending().catch(console.error);
+  }catch(err){
+    console.error('Armazenamento local indisponível',err);
+    if(!blocoIds.length) addBloco();
+    draftStatus('⚠ Armazenamento local indisponível. Verifique se o navegador permite salvar dados neste aparelho.');
+    localReady=false;draftPaused=true;
+    document.getElementById('submitBtn').disabled=true;
+    await showAlert('Não foi possível ativar o salvamento local. Saia do modo privado, libere armazenamento e reabra o RDO antes de preencher.');
+  }
+  if(!window.location.hash) window.location.hash='inicio';
+  renderScreenFromHash();
+}
+window.addEventListener('online',()=>{renderPending().catch(console.error);syncPending().catch(console.error);});
+window.addEventListener('offline',()=>{renderPending().catch(console.error);});
+document.getElementById('formScreen').addEventListener('input',scheduleDraftSave);
+document.getElementById('formScreen').addEventListener('change',scheduleDraftSave);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden') saveDraftNow().catch(console.error);
+});
 
 function showStamp(dateStr){
   const overlay = document.getElementById('stampOverlay');
@@ -1269,83 +1672,17 @@ function showStamp(dateStr){
 
 async function enviarRegistro(){
   validateForm();
-  const btn = document.getElementById('submitBtn');
-  if (btn.disabled) return;
-
-  btn.disabled = true;
-  btn.setAttribute('aria-busy', 'true');
-  btn.textContent = 'Enviando RDO…';
-
-  const data = document.getElementById('fData').value;
-  const preenchidoPor = document.getElementById('fPreenchidoPor').value.trim();
-  const gerencia = document.getElementById('fResp').value.trim();
-  const disciplina = document.getElementById('fDisciplina').value;
-  const clima = document.getElementById('fClima').value;
-  const rdoId = gerarUuid();
-
-  const atividades = blocoIds.map((id, idx) => ({
-    id: gerarUuid(),
-    rdo_id: rdoId,
-    ordem: idx + 1,
-    local: document.getElementById('local-' + id).value,
-    mao_obra: document.getElementById('maoobra-' + id).value.trim(),
-    equipamentos: document.getElementById('equipamentos-' + id).value.trim(),
-    atividade: document.getElementById('atividade-' + id).value.trim(),
-    paralisacao_sim: document.getElementById('paralisacao-sim-' + id).value === 'Sim',
-    paralisacao: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-motivo-' + id).value.trim() : null,
-    paralisacao_tipo: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-tipo-' + id).value : null,
-    paralisacao_inicio: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-inicio-' + id).value : null,
-    paralisacao_fim: document.getElementById('paralisacao-sim-' + id).value === 'Sim' ? document.getElementById('paralisacao-fim-' + id).value : null,
-    pt: document.getElementById('pt-' + id).value === 'Sim',
-    pt_numero: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-numero-' + id).value.trim() : null,
-    pt_solicitante: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-solicitante-' + id).value.trim() : null,
-    pt_emitente: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-emitente-' + id).value.trim() : null,
-    pt_inicio: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-inicio-' + id).value : null,
-    pt_fim: document.getElementById('pt-' + id).value === 'Sim' ? document.getElementById('pt-fim-' + id).value : null,
-    observacoes: document.getElementById('obs-' + id).value.trim() || null,
-    photos: [...blocoPhotos[id]]
-  }));
-
+  if (!localReady) {
+    await showAlert('O armazenamento local não está disponível. Reabra o aplicativo antes de enviar.');
+    return;
+  }
+  if (document.getElementById('submitBtn').disabled) return;
   try {
-    const { error: rdoError } = await supabaseClient
-      .from('rdo')
-      .insert({
-        id: rdoId,
-        data,
-        preenchido_por: preenchidoPor,
-        gerencia,
-        disciplina,
-        clima,
-        status: 'Enviado'
-      });
-
-    if (rdoError) {
-      throw new Error(`Falha ao enviar o RDO: ${rdoError.message}`);
-    }
-
-    btn.textContent = 'Enviando atividades…';
-
-    const atividadesBanco = atividades.map(({ photos, ...dados }) => dados);
-    const { error: atividadesError } = await supabaseClient
-      .from('atividades')
-      .insert(atividadesBanco);
-
-    if (atividadesError) {
-      throw new Error(`Falha ao enviar as atividades: ${atividadesError.message}`);
-    }
-
-    await uploadFotosDoRdo(rdoId, atividades);
-
-    showStamp(data);
-    await showAlert('RDO enviado com sucesso para o sistema HC².');
-    resetForm();
-  } catch (err) {
-    console.error('Erro no envio do RDO:', err);
-    await showAlert('Não foi possível concluir o envio. Os dados continuam preenchidos nesta tela. Verifique a conexão e tente novamente.');
-  } finally {
-    btn.removeAttribute('aria-busy');
-    btn.textContent = '➜ Enviar registro';
-    validateForm();
+    await saveDraftNow();
+    openReview(collectDraft());
+  } catch(err) {
+    console.error('Rascunho não salvo antes da revisão',err);
+    await showAlert('Não foi possível salvar o rascunho no aparelho. Verifique o armazenamento antes de continuar.');
   }
 }
 
@@ -1358,13 +1695,11 @@ function resetForm(){
   document.getElementById('fDisciplina').value = '';
   document.getElementById('fClima').value = '';
   document.getElementById('fData').value = hojeLocalISO();
-  document.getElementById('submitBtn').textContent = '➜ Enviar registro';
+  document.getElementById('submitBtn').textContent = '➜ Revisar e enviar RDO';
   addBloco();
 }
 
-addBloco();
-if (!window.location.hash) { window.location.hash = 'inicio'; }
-renderScreenFromHash();
+inicializarAplicativo().catch(console.error);
 </script>
 
 </body>

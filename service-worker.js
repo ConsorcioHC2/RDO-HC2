@@ -1,8 +1,7 @@
-const CACHE_NAME = 'hc2-rdo-v4';
+const CACHE_NAME = 'hc2-rdo-offline-review-v1';
 const APP_SHELL = [
   './',
   './index.html',
-  './admin.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
