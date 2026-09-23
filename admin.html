@@ -125,7 +125,7 @@ button,input,select{font:inherit}
       <div class="table-head"><h3>RDO consolidado</h3><div id="tableCount" class="table-count">0 atividades</div></div>
       <div class="table-scroll"><table>
         <thead><tr>
-          <th>Data</th><th>Preenchido por</th><th>Gerência</th><th>Disciplina</th><th>Clima</th><th>Status</th><th>Ativ.</th><th>Local</th><th>Mão de obra</th><th>Equipamentos</th><th>Atividade executada</th><th>Paralização</th><th>Tipo paralização</th><th>Motivo da paralização</th><th>Início paralização</th><th>Fim paralização</th><th>PT</th><th>N° PT</th><th>Solicitante</th><th>Emitente</th><th>Início PT</th><th>Fim PT</th><th>Observações</th><th>Fotos</th><th>Ações</th>
+          <th>Data</th><th>Preenchido por</th><th>Gerência</th><th>Disciplina</th><th>Clima</th><th>Status</th><th>Ativ.</th><th>Local</th><th>Mão de obra</th><th>Equipamentos</th><th>Atividade executada</th><th>Paralisação</th><th>Tipo paralisação</th><th>Motivo da paralisação</th><th>Início paralisação</th><th>Fim paralisação</th><th>PT</th><th>N° PT</th><th>Solicitante</th><th>Emitente</th><th>Início PT</th><th>Fim PT</th><th>Observações</th><th>Fotos</th><th>Ações</th>
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table><div id="emptyState" class="empty hidden">Nenhum registro encontrado com os filtros atuais.</div></div>
@@ -257,6 +257,10 @@ async function refreshStorageUsage(){
   }
 }
 
+function textoTipoParalisacao(valor){
+  return String(valor || '').replace(/paralizações/gi, 'paralisações');
+}
+
 function buildRows(){
   const rdoById=new Map(state.rdos.map(r=>[r.id,r]));
   const fotosByAtividade=new Map();
@@ -265,7 +269,7 @@ function buildRows(){
     const r=rdoById.get(a.rdo_id)||{};
     const fotos=(fotosByAtividade.get(a.id)||[]).sort((x,y)=>(x.ordem||0)-(y.ordem||0));
     return {
-      rdo_id:a.rdo_id, atividade_id:a.id, created_at:r.created_at||a.created_at||'', data:r.data||'', preenchido_por:r.preenchido_por||'', gerencia:r.gerencia||'', disciplina:r.disciplina||'', clima:r.clima||'', status:r.status||'', ordem:a.ordem||'', local:a.local||'', mao_obra:a.mao_obra||'', equipamentos:a.equipamentos||'', atividade:a.atividade||'', paralisacao:typeof a.paralisacao_sim==='boolean'?a.paralisacao_sim:!!a.paralisacao, paralisacao_tipo:a.paralisacao_tipo||(a.paralisacao?'Registro anterior':''), paralisacao_motivo:a.paralisacao||'', paralisacao_inicio:a.paralisacao_inicio||'', paralisacao_fim:a.paralisacao_fim||'', pt:!!a.pt, pt_numero:a.pt_numero||'', pt_solicitante:a.pt_solicitante||'', pt_emitente:a.pt_emitente||'', pt_inicio:a.pt_inicio||'', pt_fim:a.pt_fim||'', observacoes:a.observacoes||'', fotos
+      rdo_id:a.rdo_id, atividade_id:a.id, created_at:r.created_at||a.created_at||'', data:r.data||'', preenchido_por:r.preenchido_por||'', gerencia:r.gerencia||'', disciplina:r.disciplina||'', clima:r.clima||'', status:r.status||'', ordem:a.ordem||'', local:a.local||'', mao_obra:a.mao_obra||'', equipamentos:a.equipamentos||'', atividade:a.atividade||'', paralisacao:typeof a.paralisacao_sim==='boolean'?a.paralisacao_sim:!!a.paralisacao, paralisacao_tipo:textoTipoParalisacao(a.paralisacao_tipo)||(a.paralisacao?'Registro anterior':''), paralisacao_motivo:a.paralisacao||'', paralisacao_inicio:a.paralisacao_inicio||'', paralisacao_fim:a.paralisacao_fim||'', pt:!!a.pt, pt_numero:a.pt_numero||'', pt_solicitante:a.pt_solicitante||'', pt_emitente:a.pt_emitente||'', pt_inicio:a.pt_inicio||'', pt_fim:a.pt_fim||'', observacoes:a.observacoes||'', fotos
     };
   }).sort((x,y)=>(y.data||'').localeCompare(x.data||'') || (x.ordem||0)-(y.ordem||0));
 }
@@ -327,7 +331,7 @@ async function openDetails(rdoId){
       photoHtml=`<div class="photos">${urls.map(x=>x.url?`<a class="photo-link" href="${escapeHtml(x.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(x.url)}" alt="Foto ${x.f.ordem||''}"></a>`:'').join('')}</div><div class="photo-status">${fotos.length} foto${fotos.length===1?'':'s'} • links temporários válidos por 1 hora</div>`;
     }else photoHtml='<div class="photo-status">Sem fotos nesta atividade.</div>';
     cards.push(`<section class="activity-card"><div class="activity-head">Atividade ${escapeHtml(a.ordem||'')}</div><div class="activity-body"><div class="activity-grid">
-      <div class="detail"><b>Local</b><span>${escapeHtml(a.local||'')}</span></div><div class="detail"><b>Mão de obra</b><span>${escapeHtml(a.mao_obra||'')}</span></div><div class="detail"><b>Equipamentos</b><span>${escapeHtml(a.equipamentos||'')}</span></div><div class="detail"><b>Paralização</b><span>${(typeof a.paralisacao_sim==='boolean'?a.paralisacao_sim:!!a.paralisacao)?'Sim':'Não'}</span></div><div class="detail"><b>Tipo da paralização</b><span>${escapeHtml(a.paralisacao_tipo||(a.paralisacao?'Registro anterior':''))}</span></div><div class="detail"><b>Motivo da paralização</b><span>${escapeHtml(a.paralisacao||'')}</span></div><div class="detail"><b>Início paralização</b><span>${escapeHtml(fmtTime(a.paralisacao_inicio))}</span></div><div class="detail"><b>Fim paralização</b><span>${escapeHtml(fmtTime(a.paralisacao_fim))}</span></div><div class="detail"><b>PT</b><span>${a.pt?'Sim':'Não'}</span></div><div class="detail"><b>N° da PT</b><span>${escapeHtml(a.pt_numero||'')}</span></div><div class="detail"><b>Solicitante</b><span>${escapeHtml(a.pt_solicitante||'')}</span></div><div class="detail"><b>Emitente</b><span>${escapeHtml(a.pt_emitente||'')}</span></div><div class="detail"><b>Início PT</b><span>${escapeHtml(fmtTime(a.pt_inicio))}</span></div><div class="detail"><b>Fim PT</b><span>${escapeHtml(fmtTime(a.pt_fim))}</span></div>
+      <div class="detail"><b>Local</b><span>${escapeHtml(a.local||'')}</span></div><div class="detail"><b>Mão de obra</b><span>${escapeHtml(a.mao_obra||'')}</span></div><div class="detail"><b>Equipamentos</b><span>${escapeHtml(a.equipamentos||'')}</span></div><div class="detail"><b>Paralisação</b><span>${(typeof a.paralisacao_sim==='boolean'?a.paralisacao_sim:!!a.paralisacao)?'Sim':'Não'}</span></div><div class="detail"><b>Tipo da paralisação</b><span>${escapeHtml(textoTipoParalisacao(a.paralisacao_tipo)||(a.paralisacao?'Registro anterior':''))}</span></div><div class="detail"><b>Motivo da paralisação</b><span>${escapeHtml(a.paralisacao||'')}</span></div><div class="detail"><b>Início paralisação</b><span>${escapeHtml(fmtTime(a.paralisacao_inicio))}</span></div><div class="detail"><b>Fim paralisação</b><span>${escapeHtml(fmtTime(a.paralisacao_fim))}</span></div><div class="detail"><b>PT</b><span>${a.pt?'Sim':'Não'}</span></div><div class="detail"><b>N° da PT</b><span>${escapeHtml(a.pt_numero||'')}</span></div><div class="detail"><b>Solicitante</b><span>${escapeHtml(a.pt_solicitante||'')}</span></div><div class="detail"><b>Emitente</b><span>${escapeHtml(a.pt_emitente||'')}</span></div><div class="detail"><b>Início PT</b><span>${escapeHtml(fmtTime(a.pt_inicio))}</span></div><div class="detail"><b>Fim PT</b><span>${escapeHtml(fmtTime(a.pt_fim))}</span></div>
     </div><div class="activity-text"><b>Atividade executada</b><br>${escapeHtml(a.atividade||'')}</div>${a.observacoes?`<div class="activity-text"><b>Observações</b><br>${escapeHtml(a.observacoes)}</div>`:''}${photoHtml}</div></section>`);
   }
   el('modalBody').innerHTML=`<div class="detail-grid"><div class="detail"><b>Data</b><span>${fmtDate(rdo.data)}</span></div><div class="detail"><b>Preenchido por</b><span>${escapeHtml(rdo.preenchido_por||'')}</span></div><div class="detail"><b>Gerência</b><span>${escapeHtml(rdo.gerencia||'')}</span></div><div class="detail"><b>Disciplina</b><span>${escapeHtml(rdo.disciplina||'')}</span></div><div class="detail"><b>Clima</b><span>${escapeHtml(rdo.clima||'')}</span></div><div class="detail"><b>Status</b><span>${escapeHtml(rdo.status||'')}</span></div><div class="detail"><b>Atividades</b><span>${atividades.length}</span></div><div class="detail"><b>Fotos</b><span>${atividades.reduce((s,a)=>s+state.fotos.filter(f=>f.atividade_id===a.id).length,0)}</span></div></div>${cards.join('')}`;
@@ -421,11 +425,11 @@ const EXCEL_COLUMNS=[
   {key:'mao_obra',title:'Mão de obra',width:26,get:r=>r.mao_obra},
   {key:'equipamentos',title:'Equipamentos',width:26,get:r=>r.equipamentos},
   {key:'atividade',title:'Atividade executada',width:52,get:r=>r.atividade},
-  {key:'paralisacao',title:'Paralização',width:12,get:r=>r.paralisacao?'Sim':'Não'},
-  {key:'paralisacao_tipo',title:'Tipo da paralização',width:26,get:r=>r.paralisacao_tipo||''},
-  {key:'paralisacao_motivo',title:'Motivo da paralização',width:48,get:r=>r.paralisacao_motivo||''},
-  {key:'paralisacao_inicio',title:'Paralização início',width:16,get:r=>fmtTime(r.paralisacao_inicio)},
-  {key:'paralisacao_fim',title:'Paralização fim',width:16,get:r=>fmtTime(r.paralisacao_fim)},
+  {key:'paralisacao',title:'Paralisação',width:12,get:r=>r.paralisacao?'Sim':'Não'},
+  {key:'paralisacao_tipo',title:'Tipo da paralisação',width:26,get:r=>r.paralisacao_tipo||''},
+  {key:'paralisacao_motivo',title:'Motivo da paralisação',width:48,get:r=>r.paralisacao_motivo||''},
+  {key:'paralisacao_inicio',title:'Paralisação início',width:16,get:r=>fmtTime(r.paralisacao_inicio)},
+  {key:'paralisacao_fim',title:'Paralisação fim',width:16,get:r=>fmtTime(r.paralisacao_fim)},
   {key:'pt',title:'PT',width:9,get:r=>r.pt?'Sim':'Não'},
   {key:'pt_numero',title:'N° da PT',width:18,get:r=>r.pt_numero||''},
   {key:'pt_solicitante',title:'Nome do solicitante',width:24,get:r=>r.pt_solicitante||''},

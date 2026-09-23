@@ -673,7 +673,7 @@
     <ol class="help-steps">
       <li><div class="step-number">1</div><div><strong>Preencha os dados gerais</strong><p>Informe data, nome de quem está preenchendo, gerência da área, disciplina e condição climática.</p></div></li>
       <li><div class="step-number">2</div><div><strong>Cadastre as atividades</strong><p>Em cada atividade, preencha local, mão de obra e descreva a atividade executada com pelo menos 30 caracteres. Equipamentos são obrigatórios apenas para Construção e Montagem e Comissionamento; nas demais disciplinas, são opcionais.</p></div></li>
-      <li><div class="step-number">3</div><div><strong>Paralização e PT</strong><p>Informe Sim ou Não. Quando houver paralização, selecione o tipo, descreva o motivo e informe os horários. Quando houver PT, informe número, solicitante, emitente e os horários.</p></div></li>
+      <li><div class="step-number">3</div><div><strong>Paralisação e PT</strong><p>Informe Sim ou Não. Quando houver paralisação, selecione o tipo, descreva o motivo e informe os horários. Quando houver PT, informe número, solicitante, emitente e os horários.</p></div></li>
       <li><div class="step-number">4</div><div><strong>Anexe as fotos</strong><p>É possível anexar até 3 fotos por atividade. Para Construção e Montagem e Comissionamento, pelo menos 1 foto é obrigatória.</p></div></li>
       <li><div class="step-number">5</div><div><strong>Revise e envie</strong><p>Depois de revisar tudo, clique em “Enviar registro”. Se faltar algum campo obrigatório, o botão continua bloqueado.</p></div></li>
     </ol>
@@ -966,7 +966,7 @@ function addBloco(dados){
       <div class="char-counter" id="atividade-counter-${id}">0/30 caracteres mínimo</div>
     </div>
     <div class="field">
-      <label>Paralização (exceto pausa de segurança) <span class="req">*</span></label>
+      <label>Paralisação (exceto pausa de segurança) <span class="req">*</span></label>
       <select id="paralisacao-sim-${id}">
         <option value="">Selecione…</option>
         <option value="Sim">Sim</option>
@@ -975,17 +975,17 @@ function addBloco(dados){
     </div>
     <div class="pt-horarios" id="paralisacao-detalhes-${id}" style="display:none;">
       <div class="field">
-        <label>Tipo da paralização <span class="req">*</span></label>
+        <label>Tipo da paralisação <span class="req">*</span></label>
         <select id="paralisacao-tipo-${id}">
           <option value="">Selecione…</option>
           <option value="Condições meteorológicas">Condições meteorológicas</option>
-          <option value="Demais paralizações">Demais paralizações</option>
+          <option value="Demais paralisações">Demais paralisações</option>
         </select>
       </div>
       <div class="field paralisacao-motivo-field">
-        <label>Motivo da paralização <span class="req">*</span></label>
-        <textarea id="paralisacao-motivo-${id}" placeholder="Descreva exatamente o motivo da paralização"></textarea>
-        <div class="hint" style="margin-top:6px;">Descreva livremente o motivo da paralização.</div>
+        <label>Motivo da paralisação <span class="req">*</span></label>
+        <textarea id="paralisacao-motivo-${id}" placeholder="Descreva exatamente o motivo da paralisação"></textarea>
+        <div class="hint" style="margin-top:6px;">Descreva livremente o motivo da paralisação.</div>
       </div>
       <div class="field">
         <label>Horário de início <span class="req">*</span></label>
@@ -1066,7 +1066,7 @@ function addBloco(dados){
     document.getElementById('equipamentos-' + id).value = dados.equipamentos || '';
     document.getElementById('atividade-' + id).value = dados.atividade || '';
     document.getElementById('paralisacao-sim-' + id).value = dados.paralisacaoSim || '';
-    document.getElementById('paralisacao-tipo-' + id).value = dados.paralisacaoTipo || '';
+    document.getElementById('paralisacao-tipo-' + id).value = dados.paralisacaoTipo === 'Demais paralizações' ? 'Demais paralisações' : (dados.paralisacaoTipo || '');
     document.getElementById('paralisacao-motivo-' + id).value = dados.paralisacaoMotivo || '';
     document.getElementById('paralisacao-inicio-' + id).value = dados.paralisacaoInicio || '';
     document.getElementById('paralisacao-fim-' + id).value = dados.paralisacaoFim || '';
@@ -1458,6 +1458,7 @@ function completePhotoPaths(record){
 }
 function noPhotoPayload(a){
   const {photos, ...atividade}=a;
+  if (atividade.paralisacao_tipo === 'Demais paralizações') atividade.paralisacao_tipo = 'Demais paralisações';
   return atividade;
 }
 async function persistPending(record){await localOperation('pending','put',record);}
@@ -1633,7 +1634,7 @@ function openReview(draft){
       ${warningHtml}
       ${reviewInfo('Local',a.local)}${reviewInfo('Mão de obra',a.maoDeObra)}
       ${reviewInfo('Equipamentos',a.equipamentos)}${reviewInfo('Atividade executada',a.atividade)}
-      ${reviewInfo('Paralização',a.paralisacaoSim)}
+      ${reviewInfo('Paralisação',a.paralisacaoSim)}
       ${a.paralisacaoSim==='Sim'?reviewInfo('Tipo',a.paralisacaoTipo)+reviewInfo('Motivo',a.paralisacaoMotivo)+reviewInfo('Horário',a.paralisacaoInicio+' a '+a.paralisacaoFim):''}
       ${reviewInfo('PT',a.pt)}
       ${a.pt==='Sim'?reviewInfo('Nº PT',a.ptNumero)+reviewInfo('Solicitante',a.ptSolicitante)+reviewInfo('Emitente',a.ptEmitente)+reviewInfo('Horário PT',a.ptInicio+' a '+a.ptFim):''}
