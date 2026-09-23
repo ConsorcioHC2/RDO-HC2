@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hc2-rdo-offline-review-excel-v2';
+const CACHE_NAME = 'hc2-rdo-local-se4700-equip-v1';
 const APP_SHELL = [
   './',
   './index.html',

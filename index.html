@@ -672,7 +672,7 @@
 
     <ol class="help-steps">
       <li><div class="step-number">1</div><div><strong>Preencha os dados gerais</strong><p>Informe data, nome de quem está preenchendo, gerência da área, disciplina e condição climática.</p></div></li>
-      <li><div class="step-number">2</div><div><strong>Cadastre as atividades</strong><p>Em cada atividade, preencha local, mão de obra, equipamentos e descreva a atividade executada com pelo menos 30 caracteres.</p></div></li>
+      <li><div class="step-number">2</div><div><strong>Cadastre as atividades</strong><p>Em cada atividade, preencha local, mão de obra e descreva a atividade executada com pelo menos 30 caracteres. Equipamentos são obrigatórios apenas para Construção e Montagem e Comissionamento; nas demais disciplinas, são opcionais.</p></div></li>
       <li><div class="step-number">3</div><div><strong>Paralização e PT</strong><p>Informe Sim ou Não. Quando houver paralização, selecione o tipo, descreva o motivo e informe os horários. Quando houver PT, informe número, solicitante, emitente e os horários.</p></div></li>
       <li><div class="step-number">4</div><div><strong>Anexe as fotos</strong><p>É possível anexar até 3 fotos por atividade. Para Construção e Montagem e Comissionamento, pelo menos 1 foto é obrigatória.</p></div></li>
       <li><div class="step-number">5</div><div><strong>Revise e envie</strong><p>Depois de revisar tudo, clique em “Enviar registro”. Se faltar algum campo obrigatório, o botão continua bloqueado.</p></div></li>
@@ -758,7 +758,7 @@
     <button type="button" class="add-bloco-btn" onclick="addBloco()">+ Adicionar outra Atividade</button>
 
     <button class="submit-btn" id="submitBtn" disabled onclick="enviarRegistro()" style="margin-top:18px;">➜ Revisar e enviar RDO</button>
-    <div class="hint" id="hint">Preencha quem preencheu, gerência da área, disciplina, clima e, em cada atividade, local, mão de obra, equipamentos e atividade (mínimo 30 caracteres). Foto é obrigatória só quando a disciplina for Construção e Montagem ou Comissionamento.</div>
+    <div class="hint" id="hint">Preencha os dados gerais e, em cada atividade, local, mão de obra e descrição (mínimo 30 caracteres). Equipamentos e foto são obrigatórios apenas para Construção e Montagem e Comissionamento; nas demais disciplinas, são opcionais.</div>
   </div>
 </main>
 </div>
@@ -909,9 +909,10 @@ function gerarUuid(){
   );
 }
 
-const LOCAIS = ['Off Site – Canteiro Funcional', 'Off Site – Canteiro Fiscalização', 'On Site – U-4700', 'On Site – U-4710', 'On Site – U-4730'];
+const LOCAIS = ['Off Site – Canteiro Funcional', 'Off Site – Canteiro Fiscalização', 'On Site – SE-4700', 'On Site – U-4710', 'On Site – U-4730'];
 const DISCIPLINAS = ['Construção e Montagem', 'Engenharia', 'Planejamento', 'Planejamento/Materiais', 'Qualidade', 'SMS', 'Comissionamento'];
 const DISCIPLINAS_COM_FOTO_OBRIGATORIA = ['Construção e Montagem', 'Comissionamento'];
+const DISCIPLINAS_COM_EQUIPAMENTOS_OBRIGATORIOS = ['Construção e Montagem', 'Comissionamento'];
 
 document.getElementById('fData').value = hojeLocalISO();
 document.getElementById('fData').addEventListener('change', validateForm);
@@ -956,7 +957,7 @@ function addBloco(dados){
       <input type="text" id="maoobra-${id}" placeholder="Ex: 2 pedreiros, 1 encarregado">
     </div>
     <div class="field">
-      <label>Equipamentos <span class="req">*</span></label>
+      <label>Equipamentos <span class="req" id="equipamentosReq-${id}" style="display:none;">*</span> <span id="equipamentosOpcionalTag-${id}" style="color:var(--ink-muted); font-weight:400; text-transform:none;">(opcional)</span></label>
       <input type="text" id="equipamentos-${id}" placeholder="Ex: betoneira, compressor, guindaste">
     </div>
     <div class="field">
@@ -1059,7 +1060,8 @@ function addBloco(dados){
   document.getElementById('fotos-' + id).addEventListener('change', (e) => handleFotos(id, e));
 
   if (dados) {
-    document.getElementById('local-' + id).value = dados.local || '';
+    // Rascunhos criados antes da alteração devem manter a seleção válida.
+    document.getElementById('local-' + id).value = dados.local === 'On Site – U-4700' ? 'On Site – SE-4700' : (dados.local || '');
     document.getElementById('maoobra-' + id).value = dados.maoDeObra || '';
     document.getElementById('equipamentos-' + id).value = dados.equipamentos || '';
     document.getElementById('atividade-' + id).value = dados.atividade || '';
@@ -1110,12 +1112,17 @@ function duplicarBloco(idOrigem){
 
 function toggleFotoObrigatoriaTodos(){
   const disciplina = document.getElementById('fDisciplina').value;
-  const obrigatoria = DISCIPLINAS_COM_FOTO_OBRIGATORIA.includes(disciplina);
+  const fotoObrigatoria = DISCIPLINAS_COM_FOTO_OBRIGATORIA.includes(disciplina);
+  const equipamentoObrigatorio = DISCIPLINAS_COM_EQUIPAMENTOS_OBRIGATORIOS.includes(disciplina);
   blocoIds.forEach(id => {
-    const reqMark = document.getElementById('fotoReq-' + id);
-    const opcionalTag = document.getElementById('fotoOpcionalTag-' + id);
-    if (reqMark) reqMark.style.display = obrigatoria ? 'inline' : 'none';
-    if (opcionalTag) opcionalTag.style.display = obrigatoria ? 'none' : 'inline';
+    const fotoReq = document.getElementById('fotoReq-' + id);
+    const fotoOpcional = document.getElementById('fotoOpcionalTag-' + id);
+    const equipamentosReq = document.getElementById('equipamentosReq-' + id);
+    const equipamentosOpcional = document.getElementById('equipamentosOpcionalTag-' + id);
+    if (fotoReq) fotoReq.style.display = fotoObrigatoria ? 'inline' : 'none';
+    if (fotoOpcional) fotoOpcional.style.display = fotoObrigatoria ? 'none' : 'inline';
+    if (equipamentosReq) equipamentosReq.style.display = equipamentoObrigatorio ? 'inline' : 'none';
+    if (equipamentosOpcional) equipamentosOpcional.style.display = equipamentoObrigatorio ? 'none' : 'inline';
   });
 }
 
@@ -1247,6 +1254,7 @@ function validateForm(){
   const disciplina = document.getElementById('fDisciplina').value;
   const clima = document.getElementById('fClima').value;
   const fotoObrigatoria = DISCIPLINAS_COM_FOTO_OBRIGATORIA.includes(disciplina);
+  const equipamentosObrigatorios = DISCIPLINAS_COM_EQUIPAMENTOS_OBRIGATORIOS.includes(disciplina);
   let ok = !!data && !!preenchidoPor && !!resp && !!disciplina && !!clima && blocoIds.length > 0;
   for (const id of blocoIds) {
     const local = document.getElementById('local-' + id).value;
@@ -1277,7 +1285,7 @@ function validateForm(){
       const fim = document.getElementById('pt-fim-' + id).value;
       ptOk = ptOk && !!numero && !!solicitante && !!emitente && !!inicio && !!fim;
     }
-    if (!local || !maoObra || !equipamentos || !atividadeOk || !fotoOk || !paralisacaoOk || !ptOk) { ok = false; break; }
+    if (!local || !maoObra || (equipamentosObrigatorios && !equipamentos) || !atividadeOk || !fotoOk || !paralisacaoOk || !ptOk) { ok = false; break; }
   }
   document.getElementById('submitBtn').disabled = !ok || !localReady;
 }
